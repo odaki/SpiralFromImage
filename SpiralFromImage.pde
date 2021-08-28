@@ -53,12 +53,7 @@ String imageName;                          // Filename of the loaded image
 
 void setup() {
   size(1024, 800);
-  background(235); 
-  noStroke();
-  fill(245);
-  rect(25, 25, 125, 750);
-  fill(245);
-  rect(175, 25, 537, 750);
+  drawBackground();
 
   cp5 = new ControlP5(this);
 
