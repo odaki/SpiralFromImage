@@ -60,72 +60,77 @@ void setup() {
 
   cp5 = new ControlP5(this);
 
+  final int x0 = 37;  // parts align x
+  final int y0 = 37;  // parts align y
+  final int h0 = 19;  // parts height
+  final int w0 = 100; // parts width
+  final int s0 = 6;   // parts spacing
+  final int t0 = 12;  // label height
+
+  int xx = x0;
+  int yy = y0;
+
   // create a new button with name 'Open'
   cp5.addButton("openFileButton")
     .setLabel("Open File")
     .setBroadcast(false)
-    .setValue(0)
-    .setPosition(37, 37)
-    .setSize(100, 19)
+    .setPosition(x0, yy)
+    .setSize(w0, h0)
     .setBroadcast(true)
     ;
+  yy += (h0 + s0);
+  
   // create a new button with name 'Generate Spiral'
   cp5.addButton("generateSpiralButton")
     .setLabel("Generate Spiral")
     .setBroadcast(false)
-    .setValue(100)
-    .setPosition(37, 62)
-    .setSize(100, 19)
+    .setPosition(xx, yy)
+    .setSize(w0, h0)
     .setBroadcast(true)
     ;
+  yy += (h0 + s0);
+  
   // create a new button with name 'clearDisplay'
   cp5.addButton("clearDisplayButton")
     .setLabel("Clear Display")
     .setBroadcast(false)
-    .setValue(200)
-    .setPosition(37, 87)
-    .setSize(100, 19)
+    .setPosition(xx, yy)
+    .setSize(w0, h0)
     .setBroadcast(true)
     ;
-  //Create a new text field to show feedback from the controller
-  feedbackText = cp5.addTextarea("feedback")
-    .setSize(512, 37)
-    .setText("Load image to start")
-    //.setFont(createFont("arial", 12))
-    .setLineHeight(14)
-    .setColor(color(128))
-    .setColorBackground(color(235, 100))
-    .setColorForeground(color(245, 100))
-    .setPosition(187, 37)
-    ;
-  //Create a new slider to set amplitude of waves drawn: default value is 2.4
+  yy += (h0 + s0);
+  
+  // create a new slider to set amplitude of waves drawn: default value is 2.4
+  yy += t0; // need spece for the label
   cp5.addSlider("amplitudeSlider")
     .setBroadcast(false)
     .setLabel("Wave amplitude")
     .setRange(1, 8)
     .setValue(2.4)
-    .setPosition(37, 125)
-    .setSize(100, 19)
+    .setPosition(xx, yy)
+    .setSize(w0, h0)
     .setSliderMode(Slider.FLEXIBLE)
     .setDecimalPrecision(1)
     .setBroadcast(true)
     ;
-
+  yy += (h0 + s0);
   // reposition the Label for controller 'slider'
   cp5.getController("amplitudeSlider").getCaptionLabel().align(ControlP5.LEFT, ControlP5.TOP_OUTSIDE).setPaddingX(0).setColor(color(128));
 
+  //create a new slider to set distance between rings: default value is 5
+  yy += t0; // need spece for the label
   cp5.addSlider("distanceSlider")
     .setBroadcast(false)
     .setLabel("Distance between rings")
     .setRange(5, 10)
     .setValue(5)
     .setNumberOfTickMarks(6)
-    .setPosition(37, 163)
-    .setSize(100, 19)
+    .setPosition(xx, yy)
+    .setSize(w0, h0)
     .setSliderMode(Slider.FLEXIBLE)
     .setBroadcast(true)
     ;
-
+  yy += (h0 + s0);
   // reposition the Label for controller 'slider'
   cp5.getController("distanceSlider").getCaptionLabel().align(ControlP5.LEFT, ControlP5.TOP_OUTSIDE).setPaddingX(0).setColor(color(128));
 
@@ -133,23 +138,41 @@ void setup() {
   cp5.addToggle("previewSwitch")
     .setLabel("Live Preview")
     .setBroadcast(false)
-    .setPosition(37,190)
-    .setSize(19,19)
+    .setPosition(xx, yy)
+    .setSize(h0, h0)
     .setValue(usePreview)
     .setBroadcast(true)
     ;
-
+  yy += (h0 + s0);
   // reposition the Label for controller 'toggle'
   cp5.getController("previewSwitch").getCaptionLabel().align(ControlP5.RIGHT_OUTSIDE, ControlP5.CENTER).setPaddingX(10).setColor(color(128));
+
+  // skip
+  yy += (h0 + s0);
 
   // create a new button with name 'Generate'
   cp5.addButton("saveAsSVGButton")
     .setLabel("Save As SVG")
     .setBroadcast(false)
-    .setValue(100)
-    .setPosition(37, 263)
-    .setSize(100, 19)
+    .setPosition(xx, yy)
+    .setSize(w0, h0)
     .setBroadcast(true)
+    ;
+
+  // reset position for next raw
+  yy = y0;
+  xx = x0 + 150;
+
+  //create a new text field to show feedback from the controller
+  feedbackText = cp5.addTextarea("feedback")
+    .setSize(512, h0 * 2)
+    .setText("Load image to start")
+    //.setFont(createFont("arial", 12))
+    .setLineHeight(14)
+    .setColor(color(128))
+    .setColorBackground(color(235, 100))
+    .setColorForeground(color(245, 100))
+    .setPosition(xx, yy)
     ;
 }
 
