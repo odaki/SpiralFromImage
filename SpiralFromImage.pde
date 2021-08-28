@@ -71,8 +71,8 @@ void setup() {
     .setSize(100, 19)
     .setBroadcast(true)
     ;
-  // create a new button with name 'Draw'
-  cp5.addButton("Draw")
+  // create a new button with name 'Generate'
+  cp5.addButton("Generate")
     .setLabel("Generate SVG")
     .setBroadcast(false)
     .setValue(100)
@@ -135,8 +135,8 @@ public void Open(int theValue) {
   selectInput("Select a file to process:", "fileSelected");
 }
 
-// Button Event - Draw: Convert image file to SVG
-public void Draw(int theValue) {
+// Button Event - Generate: Convert image file to SVG
+public void Generate(int theValue) {
   if (locImg == "") {
     feedbackText.setText("no image file is currently open!");
     feedbackText.update();
