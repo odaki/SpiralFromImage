@@ -144,7 +144,7 @@ void setup() {
 
 //Button control event handler
 public void controlEvent(ControlEvent theEvent) {
-  println(theEvent.getController().getName());
+  //println(theEvent.getController().getName());
 }
 
 // Button Event - Open: Open image file dialogue
@@ -177,13 +177,13 @@ public void ClearDisplay(int theValue) {
 //Recieve amplitude value from slider
 public void amplitudeSlider(float theValue) {
   ampScale = theValue;
-  println(ampScale);
+  //println(ampScale);
 }
 
 //Recieve wave distance value from slider
 public void distanceSlider(int theValue) {
   dist = theValue;
-  println(dist);
+  //println(dist);
 }
 
 
@@ -301,7 +301,7 @@ void drawSVG() {
   }
   if (shapeOn) closePolyline();
   closeSVG ();
-  println(locImg+" was processed and saved as "+outputSVGName);
+  //println(locImg+" was processed and saved as "+outputSVGName);
   feedbackText.setText(locImg+" was processed and saved as "+outputSVGName);
   feedbackText.update();
   System.gc();
