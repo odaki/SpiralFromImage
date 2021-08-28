@@ -18,7 +18,6 @@
  Todo:
  - Choose centerpoint with mouse or numeric input
  - preview of spiral and amplitude changes in gui
- - remove clear display ( you either reload an image or quit? )
  
  SpiralfromImage is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -78,15 +77,6 @@ void setup() {
     .setBroadcast(false)
     .setValue(100)
     .setPosition(37, 62)
-    .setSize(100, 19)
-    .setBroadcast(true)
-    ;
-  // create a new button with name 'cleardisplay'
-  cp5.addButton("ClearDisplay")
-    .setLabel("Clear Display")
-    .setBroadcast(false)
-    .setValue(200)
-    .setPosition(37, 87)
     .setSize(100, 19)
     .setBroadcast(true)
     ;
@@ -158,11 +148,6 @@ public void Draw(int theValue) {
     drawSVG();
     displaySVG();
   }
-}
-
-// Clear the display of any loaded images
-public void ClearDisplay(int theValue) {
-  clearDisplay();
 }
 
 //Recieve amplitude value from slider
