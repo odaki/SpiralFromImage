@@ -14,7 +14,7 @@ void openSVG () {
 }
 
 void openPolyline () {
-  output.println("  <polyline fill=\"none\" stroke=\"#000000\" points=\"");
+  output.println("  <path fill=\"none\" style=\"stroke-linejoin:round;stroke-linecap:round\" stroke=\"#000000\" d=\"M");
 }
 
 void vertexPolyline (float x, float y) {
@@ -36,7 +36,7 @@ void vertexPolyline (float x, float y) {
 }
 
 void closePolyline () {
-  output.println("  \" style=\"stroke-linejoin:round;stroke-linecap:round\" />");
+  output.println("  \" />");
   shapeCount = 1;
 }
 
