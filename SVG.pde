@@ -33,7 +33,7 @@ void vertexPolyline (float x, float y) {
 }
 
 void closePolyline () {
-  output.println("  \" />");
+  output.println("  \" style=\"stroke-linejoin:round;stroke-linecap:round\" />");
   shapeCount = 1;
 }
 
