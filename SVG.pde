@@ -10,6 +10,7 @@ void openSVG () {
   output.println("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
   output.println("<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">");
   output.println("<svg width=\"1200 px\" height=\"1200 px\" viewBox=\"0 0 1200 1200\" xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\">");
+  shapeOn = false;
 }
 
 void openPolyline () {

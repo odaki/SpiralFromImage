@@ -236,7 +236,6 @@ void drawSVG() {
   // TODO: this will have to change if not centered
   endRadius = sqrt(pow((sourceImg.width/2), 2)+pow((sourceImg.height/2), 2));
 
-  shapeOn = false;
   openSVG ();
 
   // Have we reached the far corner of the image?
