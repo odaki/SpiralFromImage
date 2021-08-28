@@ -14,7 +14,7 @@
  1.2 removed PDF export
      added and reworked CP5 gui (taken from max_bol's fork)
      fixed wrong SVG header
-     
+ 
  Todo:
  - Choose centerpoint with mouse or numeric input
  - preview of spiral and amplitude changes in gui
@@ -137,9 +137,9 @@ public void Generate(int theValue) {
     feedbackText.update();
   } else {
     resizeImg();
-    
-// Rework to save in the same folder as original image
-    outputSVGName=imageName+".svg";
+
+    // Rework to save in the same folder as original image
+    outputSVGName=imageName+".svg"; //<>//
     drawSVG();
     displaySVG();
   }
@@ -184,7 +184,7 @@ void fileSelected(File selection) {
     sourceImg=loadImage(locImg);
     displayImg=loadImage(locImg);
     drawImg();
-    
+
     // get the filename of the image and remove the extension
     // No check if extension exists
     // TODO: extract path to save SVG to later
@@ -202,7 +202,7 @@ void drawSVG() {
   float aradius;                             // Radius with brighness applied up
   float bradius;                             // Radius with brighness applied down
   float alpha;                               // Initial rotation
-  float x, y, xa, ya, xb, yb;                // current X and y + jittered x and y 
+  float x, y, xa, ya, xb, yb;                // current X and y + jittered x and y
   float k;                                   // current radius
 
   // Calculates the first point
@@ -264,7 +264,6 @@ void drawSVG() {
         vertexPolyline (xa, ya);
         vertexPolyline (xb, yb);
       }
-
     } else {
 
       // We are outside of the image so close the shape if it is open
@@ -283,7 +282,7 @@ void drawSVG() {
   System.gc();
 }
 
-void resizeImg() { 
+void resizeImg() {
   if ( sourceImg.width > sourceImg.height) {
     sourceImg.resize (1200, 0);
   } else {
@@ -291,7 +290,7 @@ void resizeImg() {
   }
 }
 
-void resizedisplayImg() { 
+void resizedisplayImg() {
   if ( displayImg.width > displayImg.height) {
     displayImg.resize (512, 0);
   } else {
