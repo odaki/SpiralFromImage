@@ -12,3 +12,4 @@ Will export SVG and also PDF.
 
 - support live preview
 - support PDF export
+- choose centerpoint with mouse or numeric box
