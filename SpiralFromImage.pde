@@ -1,6 +1,9 @@
-/**
+/** //<>//
  SpiralfromImage
  Copyright Jan Krummrey 2016
+ 
+ forked version
+ (C) 2021 Michiyasu Odaki
  
  Idea taken from Norwegian Creations Drawbot
  http://www.norwegiancreations.com/2012/04/drawing-machine-part-2/
@@ -9,16 +12,19 @@
  Dark parts of the image have larger amplitudes.
  The result is being writen to a PDF for refinement in Illustrator/Inkscape
  
- Version 1.0 Buggy PDF export
+ Version
+ 1.0 Buggy PDF export
  1.1 added SVG export and flag to swith off PDF export
  1.2 removed PDF export
      added and reworked CP5 gui (taken from max_bol's fork)
      fixed wrong SVG header
-     
+ 
+ Forked version
+ 1.3 support live preview
+     support PDF export
+  
  Todo:
  - Choose centerpoint with mouse or numeric input
- - preview of spiral and amplitude changes in gui
- - remove clear display ( you either reload an image or quit? )
  
  SpiralfromImage is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -35,6 +41,9 @@
 import controlP5.*;                        // CP5 for gui
 import java.io.File;                       // For file import and export
 
+import processing.svg.*;
+import processing.pdf.*;
+
 ControlP5 cp5;
 File file;
 
@@ -49,134 +58,252 @@ float endRadius;                           // Largest value the spiral needs to 
 color mask = color (255, 255, 255);        // This color will not be drawn (WHITE)
 PShape outputSVG;                          // SVG shape to draw
 String outputSVGName;                      // Filename of the generated SVG
+String outputPDFName;                      // Filename of the generated PDF
 String imageName;                          // Filename of the loaded image
 
+boolean usePreview = true;
+PShape previewShape;
+boolean needToUpdatePreview = false;
 
 void setup() {
   size(1024, 800);
-  background(235); 
-  noStroke();
-  fill(245);
-  rect(25, 25, 125, 750);
-  fill(245);
-  rect(175, 25, 537, 750);
+  drawBackground();
+  previewShape = createShape(GROUP);
 
   cp5 = new ControlP5(this);
 
-  // create a new button with name 'Open'
-  cp5.addButton("Open")
+  final int x0 = 37;  // parts align x
+  final int y0 = 37;  // parts align y
+  final int h0 = 19;  // parts height
+  final int w0 = 100; // parts width
+  final int s0 = 6;   // parts spacing
+  final int t0 = 12;  // label height
+
+  int xx = x0;
+  int yy = y0;
+
+  // create a new button with name 'openFileButton'
+  cp5.addButton("openFileButton")
     .setLabel("Open File")
     .setBroadcast(false)
-    .setValue(0)
-    .setPosition(37, 37)
-    .setSize(100, 19)
+    .setPosition(xx, yy)
+    .setSize(w0, h0)
     .setBroadcast(true)
     ;
-  // create a new button with name 'Draw'
-  cp5.addButton("Draw")
-    .setLabel("Generate SVG")
+  yy += (h0 + s0);
+  
+  // create a new button with name 'generateSpiralButton'
+  cp5.addButton("generateSpiralButton")
+    .setLabel("Generate Spiral")
     .setBroadcast(false)
-    .setValue(100)
-    .setPosition(37, 62)
-    .setSize(100, 19)
+    .setPosition(xx, yy)
+    .setSize(w0, h0)
     .setBroadcast(true)
     ;
-  // create a new button with name 'cleardisplay'
-  cp5.addButton("ClearDisplay")
+  yy += (h0 + s0);
+  
+  // create a new button with name 'clearDisplay'
+  cp5.addButton("clearDisplayButton")
     .setLabel("Clear Display")
     .setBroadcast(false)
-    .setValue(200)
-    .setPosition(37, 87)
-    .setSize(100, 19)
+    .setPosition(xx, yy)
+    .setSize(w0, h0)
     .setBroadcast(true)
     ;
-  //Create a new text field to show feedback from the controller
-  feedbackText = cp5.addTextarea("feedback")
-    .setSize(512, 37)
-    .setText("Load image to start")
-    //.setFont(createFont("arial", 12))
-    .setLineHeight(14)
-    .setColor(color(128))
-    .setColorBackground(color(235, 100))
-    .setColorForeground(color(245, 100))
-    .setPosition(187, 37)
-    ;
-  //Create a new slider to set amplitude of waves drawn: default value is 2.4
+  yy += (h0 + s0);
+  
+  // create a new slider to set amplitude of waves drawn: default value is 2.4
+  yy += t0; // need spece for the label
   cp5.addSlider("amplitudeSlider")
     .setBroadcast(false)
     .setLabel("Wave amplitude")
     .setRange(1, 8)
     .setValue(2.4)
-    .setPosition(37, 125)
-    .setSize(100, 19)
+    .setPosition(xx, yy)
+    .setSize(w0, h0)
     .setSliderMode(Slider.FLEXIBLE)
     .setDecimalPrecision(1)
     .setBroadcast(true)
     ;
-
+  yy += (h0 + s0);
   // reposition the Label for controller 'slider'
   cp5.getController("amplitudeSlider").getCaptionLabel().align(ControlP5.LEFT, ControlP5.TOP_OUTSIDE).setPaddingX(0).setColor(color(128));
 
+  //create a new slider to set distance between rings: default value is 5
+  yy += t0; // need spece for the label
   cp5.addSlider("distanceSlider")
     .setBroadcast(false)
     .setLabel("Distance between rings")
     .setRange(5, 10)
     .setValue(5)
     .setNumberOfTickMarks(6)
-    .setPosition(37, 163)
-    .setSize(100, 19)
+    .setPosition(xx, yy)
+    .setSize(w0, h0)
     .setSliderMode(Slider.FLEXIBLE)
     .setBroadcast(true)
     ;
-
+  yy += (h0 + s0);
   // reposition the Label for controller 'slider'
   cp5.getController("distanceSlider").getCaptionLabel().align(ControlP5.LEFT, ControlP5.TOP_OUTSIDE).setPaddingX(0).setColor(color(128));
+
+  // create a toggle and change the default look to a (on/off) switch look
+  cp5.addToggle("previewSwitch")
+    .setLabel("Live Preview")
+    .setBroadcast(false)
+    .setPosition(xx, yy)
+    .setSize(h0, h0)
+    .setValue(usePreview)
+    .setBroadcast(true)
+    ;
+  yy += (h0 + s0);
+  // reposition the Label for controller 'toggle'
+  cp5.getController("previewSwitch").getCaptionLabel().align(ControlP5.RIGHT_OUTSIDE, ControlP5.CENTER).setPaddingX(10).setColor(color(128));
+
+  // skip
+  yy += (h0 + s0);
+
+  // create a new button with name 'saveAsSVGButton'
+  cp5.addButton("saveAsSVGButton")
+    .setLabel("Save As SVG")
+    .setBroadcast(false)
+    .setPosition(xx, yy)
+    .setSize(w0, h0)
+    .setBroadcast(true)
+    ;
+  yy += (h0 + s0);
+
+  // create a new button with name 'saveAsSVGButton'
+  cp5.addButton("saveAsPDFButton")
+    .setLabel("Save As PDF")
+    .setBroadcast(false)
+    .setPosition(xx, yy)
+    .setSize(w0, h0)
+    .setBroadcast(true)
+    ;
+  yy += (h0 + s0);
+
+  // reset position for next raw
+  yy = y0;
+  xx = x0 + 150;
+
+  //create a new text field to show feedback from the controller
+  feedbackText = cp5.addTextarea("feedback")
+    .setSize(512, h0 * 2)
+    .setText("Load image to start")
+    //.setFont(createFont("arial", 12))
+    .setLineHeight(14)
+    .setColor(color(128))
+    .setColorBackground(color(235, 100))
+    .setColorForeground(color(245, 100))
+    .setPosition(xx, yy)
+    ;
 }
 
-//Button control event handler
+// Button control event handler
 public void controlEvent(ControlEvent theEvent) {
-  println(theEvent.getController().getName());
+  //println(theEvent.getController().getName());
 }
 
 // Button Event - Open: Open image file dialogue
-public void Open(int theValue) {
-  clearDisplay();
-  locImg="";
+public void openFileButton(int theValue) {
   selectInput("Select a file to process:", "fileSelected");
 }
 
-// Button Event - Draw: Convert image file to SVG
-public void Draw(int theValue) {
+// Button Event - generateSpiral: Convert image file to SVG
+public void generateSpiralButton(int theValue) {
   if (locImg == "") {
     feedbackText.setText("no image file is currently open!");
     feedbackText.update();
-  } else {
-    resizeImg();
-    
-// Rework to save in the same folder as original image
-    outputSVGName=imageName+".svg";
-    drawSVG();
-    displaySVG();
+    return;
   }
+  needToUpdatePreview = true;
 }
 
 // Clear the display of any loaded images
-public void ClearDisplay(int theValue) {
-  clearDisplay();
+public void clearDisplayButton(int theValue) {
+  if (locImg == "") {
+    clearDisplay();
+    return;
+  }
+  clearCanvas();
+  drawImg();
 }
 
 //Recieve amplitude value from slider
 public void amplitudeSlider(float theValue) {
   ampScale = theValue;
-  println(ampScale);
+  //println(ampScale);
+  if (usePreview) {
+    needToUpdatePreview = true;
+  }
 }
 
 //Recieve wave distance value from slider
 public void distanceSlider(int theValue) {
   dist = theValue;
-  println(dist);
+  //println(dist);
+  if (usePreview) {
+    needToUpdatePreview = true;
+  }
 }
 
+// Change preview mode
+public void previewSwitch(boolean theValue) {
+  usePreview = theValue;
+  if (locImg == "") {
+    return;
+  }
+  if (usePreview) {
+    needToUpdatePreview = true;
+  }
+}
+
+// Save As SVG
+public void saveAsSVGButton(int theValue) {
+  if (locImg == "") {
+    feedbackText.setText("no image file is currently open!");
+    feedbackText.update();
+    return;
+  }
+  needToUpdatePreview = false;
+
+  // Update SVG by current parameter
+  drawSpiral();
+
+  // Save As SVG
+  PGraphics pg = createGraphics(1200, 1200, SVG, outputSVGName);
+  pg.beginDraw();
+  pg.shape(previewShape);
+  pg.endDraw();
+  feedbackText.setText(locImg+" was processed and saved as "+sketchPath(outputSVGName));
+  feedbackText.update();
+
+  needToUpdatePreview = true;
+}
+
+// Save As PDF
+public void saveAsPDFButton(int theValue) {
+  if (locImg == "") {
+    feedbackText.setText("no image file is currently open!");
+    feedbackText.update();
+    return;
+  }
+  needToUpdatePreview = false;
+
+  // Update PDF by current parameter
+  drawSpiral();
+
+  // Save As PDF
+  PGraphics pg = createGraphics(1200, 1200, PDF, outputPDFName);
+  pg.beginDraw();
+  pg.shape(previewShape);
+  pg.dispose(); // This is necessary in order to write PDF correctly.
+  pg.endDraw();
+  feedbackText.setText(locImg+" was processed and saved as "+sketchPath(outputPDFName));
+  feedbackText.update();
+
+  needToUpdatePreview = true;
+}
 
 //Redraw background elements to remove previous loaded PImage
 void drawBackground () {
@@ -188,43 +315,65 @@ void drawBackground () {
   rect(175, 25, 537, 750);
 }
 
+void clearCanvas() {
+  noStroke();
+  fill(245);
+  rect(175, 75+3, 537, 700-3);
+}
+
 void draw() {
-  //System.gc();
+  if (needToUpdatePreview) {
+    needToUpdatePreview = false;
+    drawSpiral();
+  }
 }
 
 //Opens input file selection window and draws selected image to screen
 void fileSelected(File selection) {
   if (selection == null) {
-    feedbackText.setText("Window was closed or the user hit cancel.");
-    feedbackText.update();
+    return;
+  }
+
+  locImg=selection.getAbsolutePath();
+  feedbackText.setText(locImg+" was succesfully opened");
+  feedbackText.update();
+  sourceImg=loadImage(locImg);
+  resizeImg();
+  displayImg=loadImage(locImg);
+
+  // get the filename of the image and remove the extension
+  // No check if extension exists
+  // TODO: extract path to save SVG to later
+  file = new File(locImg);
+  imageName = file.getName();
+  imageName = imageName.substring(0, imageName.lastIndexOf("."));
+  outputSVGName = imageName+".svg";
+  outputPDFName = imageName+".pdf";
+
+  if (usePreview) {
+    needToUpdatePreview = true;
   } else {
-    locImg=selection.getAbsolutePath();
-    feedbackText.setText(locImg+" was succesfully opened");
-    feedbackText.update();
-    sourceImg=loadImage(locImg);
-    displayImg=loadImage(locImg);
+    clearCanvas();
     drawImg();
-    
-    // get the filename of the image and remove the extension
-    // No check if extension exists
-    // TODO: extract path to save SVG to later
-    file = new File(locImg);
-    imageName = file.getName();
-    imageName = imageName.substring(0, imageName.lastIndexOf("."));
   }
 }
 
 // Function to creatve SVG file from loaded image file - Transparencys currently do not work as a mask colour
-void drawSVG() {
+void drawSpiral() {
   color c;                                   // Sampled color
   float b;                                   // Sampled brightness
   float radius = dist/2;                     // Current radius
   float aradius;                             // Radius with brighness applied up
   float bradius;                             // Radius with brighness applied down
   float alpha;                               // Initial rotation
-  float x, y, xa, ya, xb, yb;                // current X and y + jittered x and y 
+  float x, y, xa, ya, xb, yb;                // current X and y + jittered x and y
   float k;                                   // current radius
+  boolean shapeOn = false;                   // Keeps track of a shape is open or closed
 
+  if (locImg == "") {
+    return;
+  }
+  
   // Calculates the first point
   // currently just the center
   // TODO: create button to set center with mouse
@@ -236,8 +385,8 @@ void drawSVG() {
   // TODO: this will have to change if not centered
   endRadius = sqrt(pow((sourceImg.width/2), 2)+pow((sourceImg.height/2), 2));
 
-  shapeOn = false;
-  openSVG ();
+  previewShape = createShape(GROUP);
+  PShape s = createShape();
 
   // Have we reached the far corner of the image?
   while (radius < endRadius) {
@@ -272,39 +421,54 @@ void drawSVG() {
       // If the sampled color is the mask color do not write to the shape
       if (mask == c) {
         if (shapeOn) {
-          closePolyline ();
-          output.println("<!-- Mask -->");
+          s.endShape();
+          previewShape.addChild(s);
+          shapeOn = false;
         }
-        shapeOn = false;
       } else {
         // Add vertices to shape
         if (shapeOn == false) {
-          openPolyline ();
+          s = createShape();
+          s.setStroke(true);
+          s.setFill(false);
+          s.setStrokeJoin(ROUND);
+          s.beginShape();
           shapeOn = true;
         }
-        vertexPolyline (xa, ya);
-        vertexPolyline (xb, yb);
+        s.vertex(xa, ya);
+        s.vertex(xb, yb);
       }
-
     } else {
 
       // We are outside of the image so close the shape if it is open
       if (shapeOn == true) {
-        closePolyline ();
-        output.println("<!-- Out of bounds -->");
+        s.endShape();
+        previewShape.addChild(s);
         shapeOn = false;
       }
     }
   }
-  if (shapeOn) closePolyline();
-  closeSVG ();
-  println(locImg+" was processed and saved as "+outputSVGName);
-  feedbackText.setText(locImg+" was processed and saved as "+outputSVGName);
-  feedbackText.update();
+  if (shapeOn) {
+    s.endShape();
+    previewShape.addChild(s);
+  }
+
+  displaySVG();
+
   System.gc();
 }
 
-void resizeImg() { 
+void displaySVG() {
+  clearCanvas();
+  
+  pushMatrix();
+  translate(187, 85);
+  scale(512.0 / 1200.0);
+  shape(previewShape);
+  popMatrix();
+}
+
+void resizeImg() {
   if ( sourceImg.width > sourceImg.height) {
     sourceImg.resize (1200, 0);
   } else {
@@ -312,7 +476,7 @@ void resizeImg() {
   }
 }
 
-void resizedisplayImg() { 
+void resizedisplayImg() {
   if ( displayImg.width > displayImg.height) {
     displayImg.resize (512, 0);
   } else {
@@ -320,24 +484,16 @@ void resizedisplayImg() {
   }
 }
 
-void displaySVG () {
-  clearDisplay();
-  String svgLocation = imageName + ".svg";
-  outputSVG = loadShape(svgLocation);
-  shape(outputSVG, 187, 85, 512, 512 * outputSVG.width / outputSVG.height);
-  feedbackText.setText(locImg+" was processed and saved as "+sketchPath(outputSVGName));
-  feedbackText.update();
-}
-
 void drawImg () {
   resizedisplayImg();
-  //background(255);
   set(187, 85, displayImg);
 }
 
 void clearDisplay() {
   background(235);
   drawBackground();
-  feedbackText.setText("Load image to start");
+  if (locImg == "") {
+    feedbackText.setText("Load image to start");
+  }
   System.gc();
 }
