@@ -1,6 +1,9 @@
-/**
+/** //<>//
  SpiralfromImage
  Copyright Jan Krummrey 2016
+ 
+ forked version
+ (C) 2021 Michiyasu Odaki
  
  Idea taken from Norwegian Creations Drawbot
  http://www.norwegiancreations.com/2012/04/drawing-machine-part-2/
@@ -9,12 +12,17 @@
  Dark parts of the image have larger amplitudes.
  The result is being writen to a PDF for refinement in Illustrator/Inkscape
  
- Version 1.0 Buggy PDF export
+ Version
+ 1.0 Buggy PDF export
  1.1 added SVG export and flag to swith off PDF export
  1.2 removed PDF export
      added and reworked CP5 gui (taken from max_bol's fork)
      fixed wrong SVG header
  
+ Forked version
+ 1.3 support live preview
+     support PDF export
+  
  Todo:
  - Choose centerpoint with mouse or numeric input
  
@@ -33,6 +41,9 @@
 import controlP5.*;                        // CP5 for gui
 import java.io.File;                       // For file import and export
 
+import processing.svg.*;
+import processing.pdf.*;
+
 ControlP5 cp5;
 File file;
 
@@ -47,6 +58,7 @@ float endRadius;                           // Largest value the spiral needs to 
 color mask = color (255, 255, 255);        // This color will not be drawn (WHITE)
 PShape outputSVG;                          // SVG shape to draw
 String outputSVGName;                      // Filename of the generated SVG
+String outputPDFName;                      // Filename of the generated PDF
 String imageName;                          // Filename of the loaded image
 
 boolean usePreview = true;
@@ -158,6 +170,17 @@ void setup() {
     .setSize(w0, h0)
     .setBroadcast(true)
     ;
+  yy += (h0 + s0);
+
+  // create a new button with name 'saveAsSVGButton'
+  cp5.addButton("saveAsPDFButton")
+    .setLabel("Save As PDF")
+    .setBroadcast(false)
+    .setPosition(xx, yy)
+    .setSize(w0, h0)
+    .setBroadcast(true)
+    ;
+  yy += (h0 + s0);
 
   // reset position for next raw
   yy = y0;
@@ -194,7 +217,7 @@ public void generateSpiralButton(int theValue) {
     return;
   }
   needToUpdatePreview = true;
-} //<>//
+}
 
 // Clear the display of any loaded images
 public void clearDisplayButton(int theValue) {
@@ -243,7 +266,43 @@ public void saveAsSVGButton(int theValue) {
     return;
   }
   needToUpdatePreview = false;
-  drawSVG(true); // true means save file
+
+  // Update SVG by current parameter
+  drawSpiral();
+
+  // Save As SVG
+  PGraphics pg = createGraphics(1200, 1200, SVG, outputSVGName);
+  pg.beginDraw();
+  pg.shape(previewShape);
+  pg.endDraw();
+  feedbackText.setText(locImg+" was processed and saved as "+sketchPath(outputSVGName));
+  feedbackText.update();
+
+  needToUpdatePreview = true;
+}
+
+// Save As PDF
+public void saveAsPDFButton(int theValue) {
+  if (locImg == "") {
+    feedbackText.setText("no image file is currently open!");
+    feedbackText.update();
+    return;
+  }
+  needToUpdatePreview = false;
+
+  // Update PDF by current parameter
+  drawSpiral();
+
+  // Save As PDF
+  PGraphics pg = createGraphics(1200, 1200, PDF, outputPDFName);
+  pg.beginDraw();
+  pg.shape(previewShape);
+  pg.dispose(); // This is necessary in order to write PDF correctly.
+  pg.endDraw();
+  feedbackText.setText(locImg+" was processed and saved as "+sketchPath(outputPDFName));
+  feedbackText.update();
+
+  needToUpdatePreview = true;
 }
 
 //Redraw background elements to remove previous loaded PImage
@@ -265,7 +324,7 @@ void clearCanvas() {
 void draw() {
   if (needToUpdatePreview) {
     needToUpdatePreview = false;
-    drawSVG(false);
+    drawSpiral();
   }
 }
 
@@ -289,6 +348,7 @@ void fileSelected(File selection) {
   imageName = file.getName();
   imageName = imageName.substring(0, imageName.lastIndexOf("."));
   outputSVGName = imageName+".svg";
+  outputPDFName = imageName+".pdf";
 
   if (usePreview) {
     needToUpdatePreview = true;
@@ -299,7 +359,7 @@ void fileSelected(File selection) {
 }
 
 // Function to creatve SVG file from loaded image file - Transparencys currently do not work as a mask colour
-void drawSVG(boolean isSave) {
+void drawSpiral() {
   color c;                                   // Sampled color
   float b;                                   // Sampled brightness
   float radius = dist/2;                     // Current radius
@@ -308,6 +368,8 @@ void drawSVG(boolean isSave) {
   float alpha;                               // Initial rotation
   float x, y, xa, ya, xb, yb;                // current X and y + jittered x and y
   float k;                                   // current radius
+  boolean shapeOn = false;                   // Keeps track of a shape is open or closed
+
   if (locImg == "") {
     return;
   }
@@ -323,9 +385,6 @@ void drawSVG(boolean isSave) {
   // TODO: this will have to change if not centered
   endRadius = sqrt(pow((sourceImg.width/2), 2)+pow((sourceImg.height/2), 2));
 
-  if (isSave) {
-    openSVG ();
-  }
   previewShape = createShape(GROUP);
   PShape s = createShape();
 
@@ -362,10 +421,6 @@ void drawSVG(boolean isSave) {
       // If the sampled color is the mask color do not write to the shape
       if (mask == c) {
         if (shapeOn) {
-          if (isSave) {
-            closePolyline ();
-            output.println("<!-- Mask -->");
-          }
           s.endShape();
           previewShape.addChild(s);
           shapeOn = false;
@@ -373,19 +428,12 @@ void drawSVG(boolean isSave) {
       } else {
         // Add vertices to shape
         if (shapeOn == false) {
-          if (isSave) {
-            openPolyline ();
-          }
           s = createShape();
           s.setStroke(true);
           s.setFill(false);
           s.setStrokeJoin(ROUND);
           s.beginShape();
           shapeOn = true;
-        }
-        if (isSave) {
-          vertexPolyline (xa, ya);
-          vertexPolyline (xb, yb);
         }
         s.vertex(xa, ya);
         s.vertex(xb, yb);
@@ -394,10 +442,6 @@ void drawSVG(boolean isSave) {
 
       // We are outside of the image so close the shape if it is open
       if (shapeOn == true) {
-        if (isSave) {
-          closePolyline ();
-          output.println("<!-- Out of bounds -->");
-        }
         s.endShape();
         previewShape.addChild(s);
         shapeOn = false;
@@ -405,18 +449,8 @@ void drawSVG(boolean isSave) {
     }
   }
   if (shapeOn) {
-    if (isSave) {
-      closePolyline ();
-    }
     s.endShape();
     previewShape.addChild(s);
-  }
-
-  if (isSave) {
-    closeSVG ();
-    //println(locImg+" was processed and saved as "+outputSVGName);
-    feedbackText.setText(locImg+" was processed and saved as "+sketchPath(outputSVGName));
-    feedbackText.update();
   }
 
   displaySVG();
@@ -426,8 +460,12 @@ void drawSVG(boolean isSave) {
 
 void displaySVG() {
   clearCanvas();
-  previewShape.scale(512.0/1200.0);
-  shape(previewShape, 187, 85);
+  
+  pushMatrix();
+  translate(187, 85);
+  scale(512.0 / 1200.0);
+  shape(previewShape);
+  popMatrix();
 }
 
 void resizeImg() {
