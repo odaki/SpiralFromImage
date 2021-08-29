@@ -1,4 +1,4 @@
-/** //<>// //<>//
+/** //<>// //<>// //<>//
  SpiralfromImage
  Copyright Jan Krummrey 2016
  
@@ -146,6 +146,22 @@ void setup() {
   // reposition the Label for controller 'slider'
   cp5.getController("distanceSlider").getCaptionLabel().align(ControlP5.LEFT, ControlP5.TOP_OUTSIDE).setPaddingX(0).setColor(color(128));
 
+  //create a new slider to set density: default value is 75
+  yy += t0; // need spece for the label
+  cp5.addSlider("densitySlider")
+    .setBroadcast(false)
+    .setLabel("Density")
+    .setRange(75, 720)
+    .setValue(75)
+    .setPosition(xx, yy)
+    .setSize(w0, h0)
+    .setSliderMode(Slider.FLEXIBLE)
+    .setBroadcast(true)
+    ;
+  yy += (h0 + s0);
+  // reposition the Label for controller 'slider'
+  cp5.getController("densitySlider").getCaptionLabel().align(ControlP5.LEFT, ControlP5.TOP_OUTSIDE).setPaddingX(0).setColor(color(128));
+
   // create a toggle and change the default look to a (on/off) switch look
   cp5.addToggle("previewSwitch")
     .setLabel("Live Preview")
@@ -242,6 +258,14 @@ public void amplitudeSlider(float theValue) {
 public void distanceSlider(int theValue) {
   dist = theValue;
   //println(dist);
+  if (usePreview) {
+    needToUpdatePreview = true;
+  }
+}
+
+//Recieve density value from slider
+public void densitySlider(int theValue) {
+  density = theValue;
   if (usePreview) {
     needToUpdatePreview = true;
   }
