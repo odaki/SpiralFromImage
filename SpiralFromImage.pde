@@ -70,17 +70,17 @@ void setup() {
   int xx = x0;
   int yy = y0;
 
-  // create a new button with name 'Open'
+  // create a new button with name 'openFileButton'
   cp5.addButton("openFileButton")
     .setLabel("Open File")
     .setBroadcast(false)
-    .setPosition(x0, yy)
+    .setPosition(xx, yy)
     .setSize(w0, h0)
     .setBroadcast(true)
     ;
   yy += (h0 + s0);
   
-  // create a new button with name 'Generate Spiral'
+  // create a new button with name 'generateSpiralButton'
   cp5.addButton("generateSpiralButton")
     .setLabel("Generate Spiral")
     .setBroadcast(false)
@@ -150,7 +150,7 @@ void setup() {
   // skip
   yy += (h0 + s0);
 
-  // create a new button with name 'Generate'
+  // create a new button with name 'saveAsSVGButton'
   cp5.addButton("saveAsSVGButton")
     .setLabel("Save As SVG")
     .setBroadcast(false)
@@ -176,7 +176,7 @@ void setup() {
     ;
 }
 
-//Button control event handler
+// Button control event handler
 public void controlEvent(ControlEvent theEvent) {
   //println(theEvent.getController().getName());
 }
@@ -378,7 +378,9 @@ void drawSVG(boolean isSave) {
           }
           s = createShape();
           s.setStroke(true);
-          s.beginShape(LINES);
+          s.setFill(false);
+          s.setStrokeJoin(ROUND);
+          s.beginShape();
           shapeOn = true;
         }
         if (isSave) {
