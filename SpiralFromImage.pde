@@ -1,4 +1,4 @@
-/** //<>//
+/** //<>// //<>//
  SpiralfromImage
  Copyright Jan Krummrey 2016
  
@@ -271,7 +271,7 @@ public void saveAsSVGButton(int theValue) {
   drawSpiral();
 
   // Save As SVG
-  PGraphics pg = createGraphics(1200, 1200, SVG, outputSVGName);
+  PGraphics pg = createGraphics(sourceImg.width, sourceImg.height, SVG, outputSVGName);
   pg.beginDraw();
   pg.shape(previewShape);
   pg.endDraw();
@@ -294,7 +294,7 @@ public void saveAsPDFButton(int theValue) {
   drawSpiral();
 
   // Save As PDF
-  PGraphics pg = createGraphics(1200, 1200, PDF, outputPDFName);
+  PGraphics pg = createGraphics(sourceImg.width, sourceImg.height, PDF, outputPDFName);
   pg.beginDraw();
   pg.shape(previewShape);
   pg.dispose(); // This is necessary in order to write PDF correctly.
