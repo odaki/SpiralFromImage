@@ -1,4 +1,4 @@
-/** //<>// //<>// //<>//
+/*
  SpiralfromImage
  Copyright Jan Krummrey 2016
  
