@@ -1,40 +1,39 @@
-/*
- SpiralfromImage
- Copyright Jan Krummrey 2016
- 
- Forked version
- (C) 2021 Michiyasu Odaki
- 
- Idea taken from Norwegian Creations Drawbot
- http://www.norwegiancreations.com/2012/04/drawing-machine-part-2/
- 
- The sketch takes an image and turns it into a modulated spiral.
- Dark parts of the image have larger amplitudes.
- The result is being writen to a PDF for refinement in Illustrator/Inkscape
- 
- Version
- 1.0 Buggy PDF export
- 1.1 added SVG export and flag to swith off PDF export
- 1.2 removed PDF export
-     added and reworked CP5 gui (taken from max_bol's fork)
-     fixed wrong SVG header
- 
- Forked version
- 1.3 support live preview
-     support PDF export
-     choose centerpoint with mouse or numeric box
-  
- SpiralfromImage is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
- 
- You should have received a copy of the GNU General Public License
- along with SpiralfromImage.  If not, see <http://www.gnu.org/licenses/>.
- 
- jan@krummrey.de
- http://jan.krummrey.de
- */
+// SpiralfromImage
+// Copyright Jan Krummrey 2016
+//
+// Forked version
+// (C) 2021 Michiyasu Odaki
+//
+// Idea taken from Norwegian Creations Drawbot
+// http://www.norwegiancreations.com/2012/04/drawing-machine-part-2/
+//
+// The sketch takes an image and turns it into a modulated spiral.
+// Dark parts of the image have larger amplitudes.
+// The result is being writen to a PDF for refinement in Illustrator/Inkscape
+//
+// Version
+// 1.0 Buggy PDF export
+// 1.1 added SVG export and flag to swith off PDF export
+// 1.2 removed PDF export
+//     added and reworked CP5 gui (taken from max_bol's fork)
+//     fixed wrong SVG header
+//
+// Forked version
+// 1.3 support live preview
+//     support PDF export
+//     choose centerpoint with mouse or numeric box
+// 1.X support transparency 
+// 
+// SpiralfromImage is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with SpiralfromImage.  If not, see <http://www.gnu.org/licenses/>.
+//
+// jan@krummrey.de
+// http://jan.krummrey.de
 
 import controlP5.*;                        // CP5 for gui
 import java.io.File;                       // For file import and export
@@ -51,7 +50,7 @@ final int internalImgSize = 1200;
 final int displayImgSize = 600;
 
 String locImg = "";                        // Source image absolute location
-PImage sourceImg;                          // Source image for svg conversion
+PImage sourceImg;                          // Source image for conversion
 PImage displayImg;                         // Image to use as display
 
 float dist = 5;                            // Distance between rings
@@ -383,7 +382,7 @@ public void saveAsSVGButton(int theValue) {
   }
   needToUpdatePreview = false;
 
-  // Update SVG by current parameter
+  // Update spiral by current parameter
   drawSpiral();
 
   // Save As SVG
@@ -415,7 +414,7 @@ public void saveAsPDFButton(int theValue) {
   }
   needToUpdatePreview = false;
 
-  // Update PDF by current parameter
+  // Update spiral by current parameter
   drawSpiral();
 
   // Save As PDF
@@ -501,7 +500,7 @@ void fileSelected(File selection) {
   }
 }
 
-// Function to creatve SVG file from loaded image file - Transparencys currently do not work as a mask colour
+// Function to creatve spiral shape from loaded image file - Transparency zero work as a mask colour
 void drawSpiral() {
   float radius = dist/2;                     // Current radius
   float alpha;                               // Initial rotation
@@ -534,11 +533,13 @@ void drawSpiral() {
     if ((x>=0) && (x<sourceImg.width) && (y>=0) && (y<sourceImg.height)) {
       color c;       // Sampled color
       float b;       // Sampled brightness
+      float a;       // Sampled alpha (transparency 0 .. 255)
       float aradius; // Radius with brighness applied up
       float bradius; // Radius with brighness applied down
 
       // Get the color and brightness of the sampled pixel
       c = sourceImg.get (int(x), int(y));
+      a = alpha(c);
       b = brightness(c);
       b = map (b, 0, 255, dist*ampScale, 0);
 
@@ -555,8 +556,9 @@ void drawSpiral() {
       xb =  bradius*cos(radians(alpha))+centerPointX;
       yb = -bradius*sin(radians(alpha))+centerPointY;
 
-      // If the sampled color is the mask color do not write to the shape
-      if (mask == c) {
+      // If the sampled color is the mask color or transparency is zero,
+      // do not write to the shape.
+      if (a == 0.0 || mask == c) {
         if (shapeOn) {
           s.endShape();
           outputSpiral.addChild(s);
