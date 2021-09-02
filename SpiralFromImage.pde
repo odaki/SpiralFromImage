@@ -22,7 +22,8 @@
 // 1.3 support live preview
 //     support PDF export
 //     choose centerpoint with mouse or numeric box
-// 1.X support transparency 
+// 1.X support transparency
+//     remove mask color function
 // 
 // SpiralfromImage is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -59,7 +60,6 @@ float ampScale = 2.4;                      // Controls the amplitude
 int centerPointX = internalImgSize / 2;    // Center point of spiral
 int centerPointY = internalImgSize / 2;    // Center point of spiral
 float endRadius = internalImgSize / 2;     // Largest value the spiral needs to cover the image
-color mask = color (255, 255, 255);        // This color will not be drawn (WHITE)
 PShape outputSpiral;                       // Spriral shape to draw
 String outputSVGName;                      // Filename of the generated SVG
 String outputPDFName;                      // Filename of the generated PDF
@@ -556,9 +556,8 @@ void drawSpiral() {
       xb =  bradius*cos(radians(alpha))+centerPointX;
       yb = -bradius*sin(radians(alpha))+centerPointY;
 
-      // If the sampled color is the mask color or transparency is zero,
-      // do not write to the shape.
-      if (a == 0.0 || mask == c) {
+      // If the sampled transparency is zero, do not write to the shape.
+      if (a == 0.0) {
         if (shapeOn) {
           s.endShape();
           outputSpiral.addChild(s);
