@@ -24,6 +24,7 @@
 //     choose centerpoint with mouse or numeric box
 // 1.X support transparency
 //     remove mask color function
+//     check to see if the image format is supported on open
 // 
 // SpiralfromImage is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -43,7 +44,6 @@ import processing.svg.*;
 import processing.pdf.*;
 
 ControlP5 cp5;
-File file;
 
 Textarea feedbackText;
 
@@ -467,10 +467,22 @@ void fileSelected(File selection) {
     return;
   }
 
-  locImg=selection.getAbsolutePath();
+  locImg = selection.getAbsolutePath();
+  // Check to see if the format is supported
+  // https://processing.org/reference/loadImage_.html
+  String ext = locImg.substring(locImg.lastIndexOf(".") + 1).toLowerCase();
+  if (!ext.equals("gif")
+    && !ext.equals("jpg") && !ext.equals("jpeg")
+    && !ext.equals("tga")
+    && !ext.equals("png")) {
+    feedbackText.setText(locImg+" is not supported format");
+    feedbackText.update();
+    return;      
+  }
+  
+  sourceImg=loadImage(locImg);
   feedbackText.setText(locImg+" was succesfully opened");
   feedbackText.update();
-  sourceImg=loadImage(locImg);
   resizeImg();
   displayImg=loadImage(locImg);
   resizedisplayImg();
@@ -486,7 +498,7 @@ void fileSelected(File selection) {
 
   // get the filename of the image and remove the extension
   // No check if extension exists
-  file = new File(locImg);
+  File file = new File(locImg);
   imageName = file.getName();
   imageName = imageName.substring(0, imageName.lastIndexOf("."));
   outputSVGName = imageName+".svg";
