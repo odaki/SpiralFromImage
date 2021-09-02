@@ -165,7 +165,7 @@ void setup() {
   cp5.addSlider("densitySlider")
     .setBroadcast(false)
     .setLabel("Density")
-    .setRange(75, 720)
+    .setRange(75, 360)
     .setValue(density)
     .setPosition(xx, yy)
     .setSize(w0, h0)
