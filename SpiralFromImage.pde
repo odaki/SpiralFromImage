@@ -25,7 +25,7 @@
 // 1.X support transparency
 //     remove mask color function
 //     check to see if the image format is supported on open
-// 
+//
 // SpiralfromImage is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -105,7 +105,7 @@ void setup() {
     .setBroadcast(true)
     ;
   yy += (h0 + s0);
-  
+
   // create a new button with name 'generateSpiralButton'
   cp5.addButton("generateSpiralButton")
     .setLabel("Generate Spiral")
@@ -115,7 +115,7 @@ void setup() {
     .setBroadcast(true)
     ;
   yy += (h0 + s0);
-  
+
   // create a new button with name 'clearDisplay'
   cp5.addButton("clearDisplayButton")
     .setLabel("Clear Display")
@@ -125,7 +125,7 @@ void setup() {
     .setBroadcast(true)
     ;
   yy += (h0 + s0);
-  
+
   // create a new slider to set amplitude of waves drawn: default value is 2.4
   yy += t0; // need spece for the label
   cp5.addSlider("amplitudeSlider")
@@ -177,7 +177,7 @@ void setup() {
   cp5.getController("densitySlider").getCaptionLabel().align(ControlP5.LEFT, ControlP5.TOP_OUTSIDE).setPaddingX(0).setColor(color(128));
 
   yy += t0; // some space for grouping
-  
+
   //create a numberbox to set centerpoint
   cp5.addNumberbox("cernterPointXNumberbox")
     .setLabel("Center X")
@@ -193,7 +193,7 @@ void setup() {
   yy += (h0 + s0);
   // reposition the Label for controller 'slider'
   cp5.getController("cernterPointXNumberbox").getCaptionLabel().align(ControlP5.RIGHT_OUTSIDE, ControlP5.CENTER).setPaddingX(10).setColor(color(128));
-  
+
   //create a numberbox to set centerpoint
   cp5.addNumberbox("cernterPointYNumberbox")
     .setLabel("Center Y")
@@ -477,9 +477,9 @@ void fileSelected(File selection) {
     && !ext.equals("png")) {
     feedbackText.setText(locImg+" is not supported format");
     feedbackText.update();
-    return;      
+    return;
   }
-  
+
   sourceImg=loadImage(locImg);
   feedbackText.setText(locImg+" was succesfully opened");
   feedbackText.update();
@@ -518,11 +518,11 @@ void drawSpiral() {
   float alpha;                               // Initial rotation
   float k;                                   // current radius
   boolean shapeOn = false;                   // Keeps track of a shape is open or closed
-  
+
   if (locImg == "") {
     return;
   }
-  
+
   // Calculates the first point
   k = density/radius;
   alpha = k;
@@ -609,7 +609,7 @@ void drawSpiral() {
 
 void displaySVG() {
   clearCanvas();
-  
+
   pushMatrix();
   translate(canvasOriginX, canvasOriginY);
   scale(float(displayImgSize) / float(internalImgSize));
@@ -697,14 +697,14 @@ void mousePressed() {
   }
 
   if (mouseButton == LEFT) {
-    if (inCanvas()) { 
-      mouseLocked = true; 
+    if (inCanvas()) {
+      mouseLocked = true;
       centerPointX = int(float(mouseX - canvasOriginX) * float(internalImgSize) / float(displayImgSize));
       centerPointY = int(float(mouseY - canvasOriginY) * float(internalImgSize) / float(displayImgSize));
       // update GUI parts
       cp5.getController("cernterPointXNumberbox").setValue(centerPointX);
       cp5.getController("cernterPointYNumberbox").setValue(centerPointY);
-      
+
       updateEndRadius();
       if (usePreview) {
         needToUpdatePreview = true;
