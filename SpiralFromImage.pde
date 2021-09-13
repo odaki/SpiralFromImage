@@ -38,7 +38,7 @@
 // http://jan.krummrey.de
 
 import controlP5.*;                        // CP5 for gui
-import java.io.File;                       // For file import and export
+import java.io.File;                       // Required for file path operations
 
 import processing.svg.*;
 import processing.pdf.*;
@@ -50,7 +50,8 @@ Textarea feedbackText;
 final int internalImgSize = 1200;
 final int displayImgSize = 600;
 
-String locImg = "";                        // Source image absolute location
+String sourceImgPath = "";                 // Source image absolute location
+boolean isLoaded = false;                  // Whether the source image has been loaded or not
 PImage sourceImg;                          // Source image for conversion
 PImage displayImg;                         // Image to use as display
 
@@ -61,9 +62,6 @@ int centerPointX = internalImgSize / 2;    // Center point of spiral
 int centerPointY = internalImgSize / 2;    // Center point of spiral
 float endRadius = internalImgSize / 2;     // Largest value the spiral needs to cover the image
 PShape outputSpiral;                       // Spriral shape to draw
-String outputSVGName;                      // Filename of the generated SVG
-String outputPDFName;                      // Filename of the generated PDF
-String imageName;                          // Filename of the loaded image
 
 boolean useCircleShape = false;
 boolean usePreview = true;
@@ -293,7 +291,7 @@ public void openFileButton(int theValue) {
 
 // Button Event - generateSpiral: Convert image file to SVG
 public void generateSpiralButton(int theValue) {
-  if (locImg == "") {
+  if (!isLoaded) {
     feedbackText.setText("no image file is currently open!");
     feedbackText.update();
     return;
@@ -303,7 +301,7 @@ public void generateSpiralButton(int theValue) {
 
 // Clear the display of any loaded images
 public void clearDisplayButton(int theValue) {
-  if (locImg == "") {
+  if (!isLoaded) {
     clearDisplay();
     return;
   }
@@ -356,7 +354,7 @@ public void cernterPointYNumberbox(int theValue) {
 // Whether to make the data shape a circle or not
 public void useCircleSwitch(boolean theValue) {
   useCircleShape = theValue;
-  if (locImg == "") {
+  if (!isLoaded) {
     return;
   }
   updateEndRadius();
@@ -368,7 +366,7 @@ public void useCircleSwitch(boolean theValue) {
 // Change preview mode
 public void previewSwitch(boolean theValue) {
   usePreview = theValue;
-  if (locImg == "") {
+  if (!isLoaded) {
     return;
   }
   if (usePreview) {
@@ -376,9 +374,19 @@ public void previewSwitch(boolean theValue) {
   }
 }
 
+// File path utils
+String createOutputFilename(String basePath, String ext) {
+  // get the filename of the image and remove the extension
+  // No check if extension exists
+  File file = new File(basePath);
+  String imageName = file.getName();
+  imageName = imageName.substring(0, imageName.lastIndexOf("."));
+  return imageName + "." + ext;
+}
+
 // Save As SVG
 public void saveAsSVGButton(int theValue) {
-  if (locImg == "") {
+  if (!isLoaded) {
     feedbackText.setText("no image file is currently open!");
     feedbackText.update();
     return;
@@ -395,14 +403,15 @@ public void saveAsSVGButton(int theValue) {
     w = int(endRadius * 2) + 1;
     h = int(endRadius * 2) + 1;
   }
-  PGraphics pg = createGraphics(w, h, SVG, outputSVGName);
+  String outputFilename = createOutputFilename(sourceImgPath, "svg");
+  PGraphics pg = createGraphics(w, h, SVG, outputFilename);
   pg.beginDraw();
   if (useCircleShape) {
     pg.translate(endRadius - centerPointX, endRadius - centerPointY);
   }
   pg.shape(outputSpiral);
   pg.endDraw();
-  feedbackText.setText(locImg + " was processed and saved as " + sketchPath(outputSVGName));
+  feedbackText.setText(sourceImgPath + " was processed and saved as " + sketchPath(outputFilename));
   feedbackText.update();
 
   needToUpdatePreview = true;
@@ -410,7 +419,7 @@ public void saveAsSVGButton(int theValue) {
 
 // Save As PDF
 public void saveAsPDFButton(int theValue) {
-  if (locImg == "") {
+  if (!isLoaded) {
     feedbackText.setText("no image file is currently open!");
     feedbackText.update();
     return;
@@ -427,7 +436,8 @@ public void saveAsPDFButton(int theValue) {
     w = int(endRadius * 2) + 1;
     h = int(endRadius * 2) + 1;
   }
-  PGraphics pg = createGraphics(w, h, PDF, outputPDFName);
+  String outputFilename = createOutputFilename(sourceImgPath, "pdf");
+  PGraphics pg = createGraphics(w, h, PDF, outputFilename);
   pg.beginDraw();
   if (useCircleShape) {
     pg.translate(endRadius - centerPointX, endRadius - centerPointY);
@@ -435,7 +445,7 @@ public void saveAsPDFButton(int theValue) {
   pg.shape(outputSpiral);
   pg.dispose(); // This is necessary in order to write PDF correctly.
   pg.endDraw();
-  feedbackText.setText(locImg + " was processed and saved as " + sketchPath(outputPDFName));
+  feedbackText.setText(sourceImgPath + " was processed and saved as " + sketchPath(outputFilename));
   feedbackText.update();
 
   needToUpdatePreview = true;
@@ -470,7 +480,7 @@ void fileSelected(File selection) {
     return;
   }
 
-  locImg = selection.getAbsolutePath();
+  String locImg = selection.getAbsolutePath();
   // Check to see if the format is supported
   // https://processing.org/reference/loadImage_.html
   String ext = locImg.substring(locImg.lastIndexOf(".") + 1).toLowerCase();
@@ -499,13 +509,9 @@ void fileSelected(File selection) {
   cp5.getController("cernterPointYNumberbox").setValue(centerPointY);
   cp5.getController("cernterPointYNumberbox").setMax(float(sourceImg.height - 1));
 
-  // get the filename of the image and remove the extension
-  // No check if extension exists
-  File file = new File(locImg);
-  imageName = file.getName();
-  imageName = imageName.substring(0, imageName.lastIndexOf("."));
-  outputSVGName = imageName + ".svg";
-  outputPDFName = imageName + ".pdf";
+  // Everything went well.
+  sourceImgPath = locImg;
+  isLoaded = true;
 
   if (usePreview) {
     needToUpdatePreview = true;
@@ -522,7 +528,7 @@ void drawSpiral() {
   float k;                                   // current radius
   boolean shapeOn = false;                   // Keeps track of a shape is open or closed
 
-  if (locImg == "") {
+  if (!isLoaded) {
     return;
   }
 
@@ -643,7 +649,7 @@ void drawImg() {
 void clearDisplay() {
   background(235);
   drawBackground();
-  if (locImg == "") {
+  if (!isLoaded) {
     feedbackText.setText("Load image to start");
   }
   System.gc();
@@ -695,7 +701,7 @@ boolean inCanvas() {
 boolean mouseLocked = false;
 
 void mousePressed() {
-  if (locImg == "") {
+  if (!isLoaded) {
     return;
   }
 
