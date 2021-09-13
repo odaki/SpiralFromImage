@@ -522,10 +522,10 @@ void draw() {
 
 // Function to creatve spiral shape from loaded image file - Transparency zero work as a mask colour
 void drawSpiral() {
-  float radius = dist / 2;                     // Current radius
-  float alpha;                               // Initial rotation
-  float k;                                   // current radius
-  boolean shapeOn = false;                   // Keeps track of a shape is open or closed
+  float radius = dist / 2; // Current radius
+  float alpha;             // Initial rotation
+  float k;                 // current radius
+  boolean shapeOn = false; // Keeps track of a shape is open or closed
 
   if (!isLoaded) {
     return;
@@ -541,63 +541,47 @@ void drawSpiral() {
 
   // Have we reached the far corner of the image?
   while (radius < endRadius) {
-    float x, y, xa, ya, xb, yb; // current X and y + jittered x and y
     k = (density / 2) / radius;
     alpha += k;
     radius += dist / (360 / k);
-    x = radius * cos(radians(alpha)) + centerPointX;
-    y = -radius * sin(radians(alpha)) + centerPointY;
+    float x = radius * cos(radians(alpha)) + centerPointX;
+    float y = -radius * sin(radians(alpha)) + centerPointY;
 
     // Are we within the the image?
     // If so check if the shape is open. If not, open it
-    if ((x >=  0) && (x<sourceImg.width) && (y>= 0) && (y<sourceImg.height)) {
-      color c;       // Sampled color
-      float b;       // Sampled brightness
-      float a;       // Sampled alpha (transparency 0 .. 255)
-      float aradius; // Radius with brighness applied up
-      float bradius; // Radius with brighness applied down
 
-      // Get the color and brightness of the sampled pixel
-      c = sourceImg.get(int(x), int(y));
-      a = alpha(c);
-      b = brightness(c);
-      b = map(b, 0, 255, dist * ampScale, 0);
-
+    // Get the color and brightness of the sampled pixel
+    color c = sourceImg.get(int(x), int(y)); // Sampled color
+    float a = alpha(c);                      // Sampled alpha (transparency 0 .. 255)
+    if ((a != 0.0) && (x >= 0) && (x < sourceImg.width) && (y >= 0) && (y < sourceImg.height)) {
+      float b = map(brightness(c), 0, 255, dist * ampScale, 0); // Sampled brightness
       // Move up according to sampled brightness
-      aradius = radius + (b / dist);
-      xa =  aradius * cos(radians(alpha)) + centerPointX;
-      ya = -aradius * sin(radians(alpha)) + centerPointY;
+      float aradius = radius + (b / dist); // Radius with brighness applied up
+      float xa =  aradius * cos(radians(alpha)) + centerPointX;
+      float ya = -aradius * sin(radians(alpha)) + centerPointY;
 
       // Move down according to sampled brightness
       k = (density / 2) / radius;
       alpha += k;
       radius += dist / (360 / k);
-      bradius = radius - (b / dist);
-      xb =  bradius * cos(radians(alpha)) + centerPointX;
-      yb = -bradius * sin(radians(alpha)) + centerPointY;
 
-      // If the sampled transparency is zero, do not write to the shape.
-      if (a == 0.0) {
-        if (shapeOn) {
-          s.endShape();
-          outputSpiral.addChild(s);
-          shapeOn = false;
-        }
-      } else {
-        // Add vertices to shape
-        if (shapeOn == false) {
-          s = createShape();
-          s.setStroke(true);
-          s.setFill(false);
-          s.setStrokeJoin(ROUND);
-          s.beginShape();
-          shapeOn = true;
-        }
-        s.vertex(xa, ya);
-        s.vertex(xb, yb);
+      float bradius = radius - (b / dist); // Radius with brighness applied down
+      float xb =  bradius * cos(radians(alpha)) + centerPointX;
+      float yb = -bradius * sin(radians(alpha)) + centerPointY;
+
+      // Add vertices to shape
+      if (shapeOn == false) {
+        s = createShape();
+        s.setStroke(true);
+        s.setFill(false);
+        s.setStrokeJoin(ROUND);
+        s.beginShape();
+        shapeOn = true;
       }
+      s.vertex(xa, ya);
+      s.vertex(xb, yb);
     } else {
-      // We are outside of the image so close the shape if it is open
+      // We are outside of the image or transparency is zero, so close the shape if it is open
       if (shapeOn == true) {
         s.endShape();
         outputSpiral.addChild(s);
@@ -605,6 +589,8 @@ void drawSpiral() {
       }
     }
   }
+
+  // end of loop
   if (shapeOn) {
     s.endShape();
     outputSpiral.addChild(s);
