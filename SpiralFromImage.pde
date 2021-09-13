@@ -288,6 +288,52 @@ public void controlEvent(ControlEvent theEvent) {
 public void openFileButton(int theValue) {
   selectInput("Select a file to process:", "fileSelected");
 }
+// Opens input file selection window and draws selected image to screen
+void fileSelected(File selection) {
+  if (selection == null) {
+    return;
+  }
+
+  String locImg = selection.getAbsolutePath();
+  // Check to see if the format is supported
+  // https://processing.org/reference/loadImage_.html
+  String ext = locImg.substring(locImg.lastIndexOf(".") + 1).toLowerCase();
+  if (!ext.equals("gif")
+    && !ext.equals("jpg") && !ext.equals("jpeg")
+    && !ext.equals("tga")
+    && !ext.equals("png")) {
+    feedbackText.setText(locImg + " is not supported format");
+    feedbackText.update();
+    return;
+  }
+
+  sourceImg = loadImage(locImg);
+  feedbackText.setText(locImg + " was succesfully opened");
+  feedbackText.update();
+  resizeImg();
+  displayImg = loadImage(locImg);
+  resizedisplayImg();
+
+  centerPointX = sourceImg.width / 2;
+  centerPointY = sourceImg.height / 2;
+  updateEndRadius();
+  // update GUI parts
+  cp5.getController("cernterPointXNumberbox").setValue(centerPointX);
+  cp5.getController("cernterPointXNumberbox").setMax(float(sourceImg.width - 1));
+  cp5.getController("cernterPointYNumberbox").setValue(centerPointY);
+  cp5.getController("cernterPointYNumberbox").setMax(float(sourceImg.height - 1));
+
+  // Everything went well.
+  sourceImgPath = locImg;
+  isLoaded = true;
+
+  if (usePreview) {
+    needToUpdatePreview = true;
+  } else {
+    clearCanvas();
+    drawImg();
+  }
+}
 
 // Button Event - generateSpiral: Convert image file to SVG
 public void generateSpiralButton(int theValue) {
@@ -471,53 +517,6 @@ void draw() {
   if (needToUpdatePreview) {
     needToUpdatePreview = false;
     drawSpiral();
-  }
-}
-
-//Opens input file selection window and draws selected image to screen
-void fileSelected(File selection) {
-  if (selection == null) {
-    return;
-  }
-
-  String locImg = selection.getAbsolutePath();
-  // Check to see if the format is supported
-  // https://processing.org/reference/loadImage_.html
-  String ext = locImg.substring(locImg.lastIndexOf(".") + 1).toLowerCase();
-  if (!ext.equals("gif")
-    && !ext.equals("jpg") && !ext.equals("jpeg")
-    && !ext.equals("tga")
-    && !ext.equals("png")) {
-    feedbackText.setText(locImg + " is not supported format");
-    feedbackText.update();
-    return;
-  }
-
-  sourceImg = loadImage(locImg);
-  feedbackText.setText(locImg + " was succesfully opened");
-  feedbackText.update();
-  resizeImg();
-  displayImg = loadImage(locImg);
-  resizedisplayImg();
-
-  centerPointX = sourceImg.width / 2;
-  centerPointY = sourceImg.height / 2;
-  updateEndRadius();
-  // update GUI parts
-  cp5.getController("cernterPointXNumberbox").setValue(centerPointX);
-  cp5.getController("cernterPointXNumberbox").setMax(float(sourceImg.width - 1));
-  cp5.getController("cernterPointYNumberbox").setValue(centerPointY);
-  cp5.getController("cernterPointYNumberbox").setMax(float(sourceImg.height - 1));
-
-  // Everything went well.
-  sourceImgPath = locImg;
-  isLoaded = true;
-
-  if (usePreview) {
-    needToUpdatePreview = true;
-  } else {
-    clearCanvas();
-    drawImg();
   }
 }
 
