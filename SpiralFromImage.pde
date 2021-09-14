@@ -1,70 +1,67 @@
-/** //<>// //<>// //<>//
- SpiralfromImage
- Copyright Jan Krummrey 2016
- 
- Forked version
- (C) 2021 Michiyasu Odaki
- 
- Idea taken from Norwegian Creations Drawbot
- http://www.norwegiancreations.com/2012/04/drawing-machine-part-2/
- 
- The sketch takes an image and turns it into a modulated spiral.
- Dark parts of the image have larger amplitudes.
- The result is being writen to a PDF for refinement in Illustrator/Inkscape
- 
- Version
- 1.0 Buggy PDF export
- 1.1 added SVG export and flag to swith off PDF export
- 1.2 removed PDF export
-     added and reworked CP5 gui (taken from max_bol's fork)
-     fixed wrong SVG header
- 
- Forked version
- 1.3 support live preview
-     support PDF export
-     choose centerpoint with mouse or numeric box
-  
- SpiralfromImage is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
- 
- You should have received a copy of the GNU General Public License
- along with SpiralfromImage.  If not, see <http://www.gnu.org/licenses/>.
- 
- jan@krummrey.de
- http://jan.krummrey.de
- */
+// SpiralfromImage
+// Copyright Jan Krummrey 2016
+//
+// Forked version
+// (C) 2021 Michiyasu Odaki
+//
+// Idea taken from Norwegian Creations Drawbot
+// http://www.norwegiancreations.com/2012/04/drawing-machine-part-2/
+//
+// The sketch takes an image and turns it into a modulated spiral.
+// Dark parts of the image have larger amplitudes.
+// The result is being writen to a PDF for refinement in Illustrator/Inkscape
+//
+// Version
+// 1.0 Buggy PDF export
+// 1.1 added SVG export and flag to swith off PDF export
+// 1.2 removed PDF export
+//     added and reworked CP5 gui (taken from max_bol's fork)
+//     fixed wrong SVG header
+//
+// Forked version
+// 1.3 support live preview
+//     support PDF export
+//     choose centerpoint with mouse or numeric box
+// 1.4 support transparency
+//     remove mask color function
+//     check to see if the image format is supported on open
+//     automatically calculate ampScale
+//
+// SpiralfromImage is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with SpiralfromImage.  If not, see <http://www.gnu.org/licenses/>.
+//
+// jan@krummrey.de
+// http://jan.krummrey.de
 
 import controlP5.*;                        // CP5 for gui
-import java.io.File;                       // For file import and export
+import java.io.File;                       // Required for file path operations
 
 import processing.svg.*;
 import processing.pdf.*;
 
 ControlP5 cp5;
-File file;
 
 Textarea feedbackText;
 
 final int internalImgSize = 1200;
 final int displayImgSize = 600;
 
-String locImg = "";                        // Source image absolute location
-PImage sourceImg;                          // Source image for svg conversion
+String sourceImgPath = "";                 // Source image absolute location
+boolean isLoaded = false;                  // Whether the source image has been loaded or not
+PImage sourceImg;                          // Source image for conversion
 PImage displayImg;                         // Image to use as display
 
-float dist = 5;                            // Distance between rings
-float density = 75;                        // Density
-float ampScale = 2.4;                      // Controls the amplitude
+float distance = 5;                        // Distance between rings
+float density = 36;                        // Density
 int centerPointX = internalImgSize / 2;    // Center point of spiral
 int centerPointY = internalImgSize / 2;    // Center point of spiral
 float endRadius = internalImgSize / 2;     // Largest value the spiral needs to cover the image
-color mask = color (255, 255, 255);        // This color will not be drawn (WHITE)
 PShape outputSpiral;                       // Spriral shape to draw
-String outputSVGName;                      // Filename of the generated SVG
-String outputPDFName;                      // Filename of the generated PDF
-String imageName;                          // Filename of the loaded image
 
 boolean useCircleShape = false;
 boolean usePreview = true;
@@ -84,7 +81,10 @@ void settings() {
 void setup() {
   drawBackground();
   outputSpiral = createShape(GROUP);
+  setupGUI();
+}
 
+void setupGUI() {
   cp5 = new ControlP5(this);
 
   final int x0 = 37;  // parts align x
@@ -97,7 +97,7 @@ void setup() {
   int xx = x0;
   int yy = y0;
 
-  // create a new button with name 'openFileButton'
+  // Create a new button with name 'openFileButton'
   cp5.addButton("openFileButton")
     .setLabel("Open File")
     .setBroadcast(false)
@@ -106,8 +106,8 @@ void setup() {
     .setBroadcast(true)
     ;
   yy += (h0 + s0);
-  
-  // create a new button with name 'generateSpiralButton'
+
+  // Create a new button with name 'generateSpiralButton'
   cp5.addButton("generateSpiralButton")
     .setLabel("Generate Spiral")
     .setBroadcast(false)
@@ -116,8 +116,8 @@ void setup() {
     .setBroadcast(true)
     ;
   yy += (h0 + s0);
-  
-  // create a new button with name 'clearDisplay'
+
+  // Create a new button with name 'clearDisplay'
   cp5.addButton("clearDisplayButton")
     .setLabel("Clear Display")
     .setBroadcast(false)
@@ -126,25 +126,8 @@ void setup() {
     .setBroadcast(true)
     ;
   yy += (h0 + s0);
-  
-  // create a new slider to set amplitude of waves drawn: default value is 2.4
-  yy += t0; // need spece for the label
-  cp5.addSlider("amplitudeSlider")
-    .setBroadcast(false)
-    .setLabel("Wave amplitude")
-    .setRange(1, 8)
-    .setValue(2.4)
-    .setPosition(xx, yy)
-    .setSize(w0, h0)
-    .setSliderMode(Slider.FLEXIBLE)
-    .setDecimalPrecision(1)
-    .setBroadcast(true)
-    ;
-  yy += (h0 + s0);
-  // reposition the Label for controller 'slider'
-  cp5.getController("amplitudeSlider").getCaptionLabel().align(ControlP5.LEFT, ControlP5.TOP_OUTSIDE).setPaddingX(0).setColor(color(128));
 
-  //create a new slider to set distance between rings: default value is 5
+  // Create a new slider to set distance between rings: default value is 5
   yy += t0; // need spece for the label
   cp5.addSlider("distanceSlider")
     .setBroadcast(false)
@@ -158,15 +141,15 @@ void setup() {
     .setBroadcast(true)
     ;
   yy += (h0 + s0);
-  // reposition the Label for controller 'slider'
+  // Reposition the Label for controller 'slider'
   cp5.getController("distanceSlider").getCaptionLabel().align(ControlP5.LEFT, ControlP5.TOP_OUTSIDE).setPaddingX(0).setColor(color(128));
 
-  //create a new slider to set density: default value is 75
+  // Create a new slider to set density: default value is 75
   yy += t0; // need spece for the label
   cp5.addSlider("densitySlider")
     .setBroadcast(false)
     .setLabel("Density")
-    .setRange(75, 720)
+    .setRange(36, 180)
     .setValue(density)
     .setPosition(xx, yy)
     .setSize(w0, h0)
@@ -174,17 +157,17 @@ void setup() {
     .setBroadcast(true)
     ;
   yy += (h0 + s0);
-  // reposition the Label for controller 'slider'
+  // Reposition the Label for controller 'slider'
   cp5.getController("densitySlider").getCaptionLabel().align(ControlP5.LEFT, ControlP5.TOP_OUTSIDE).setPaddingX(0).setColor(color(128));
 
   yy += t0; // some space for grouping
-  
-  //create a numberbox to set centerpoint
+
+  // Create a numberbox to set centerpoint
   cp5.addNumberbox("cernterPointXNumberbox")
     .setLabel("Center X")
     .setBroadcast(false)
     .setRange(0, internalImgSize - 1)
-    .setPosition(xx,yy)
+    .setPosition(xx, yy)
     .setSize(w0 / 2, h0)
     .setScrollSensitivity(1.1)
     .setDirection(Controller.HORIZONTAL) // change the control direction to left/right
@@ -192,15 +175,15 @@ void setup() {
     .setBroadcast(true)
     ;
   yy += (h0 + s0);
-  // reposition the Label for controller 'slider'
+  // Reposition the Label for controller 'slider'
   cp5.getController("cernterPointXNumberbox").getCaptionLabel().align(ControlP5.RIGHT_OUTSIDE, ControlP5.CENTER).setPaddingX(10).setColor(color(128));
-  
-  //create a numberbox to set centerpoint
+
+  // Create a numberbox to set centerpoint
   cp5.addNumberbox("cernterPointYNumberbox")
     .setLabel("Center Y")
     .setBroadcast(false)
     .setRange(0, internalImgSize - 1)
-    .setPosition(xx,yy)
+    .setPosition(xx, yy)
     .setSize(w0 / 2, h0)
     .setScrollSensitivity(1.1)
     .setDirection(Controller.HORIZONTAL) // change the control direction to left/right
@@ -208,10 +191,10 @@ void setup() {
     .setBroadcast(true)
     ;
   yy += (h0 + s0);
-  // reposition the Label for controller 'slider'
+  // Reposition the Label for controller 'slider'
   cp5.getController("cernterPointYNumberbox").getCaptionLabel().align(ControlP5.RIGHT_OUTSIDE, ControlP5.CENTER).setPaddingX(10).setColor(color(128));
 
-  // create a toggle to enable/disable live preview: default is false
+  // Create a toggle to enable/disable live preview: default is false
   cp5.addToggle("useCircleSwitch")
     .setLabel("Circle Shape")
     .setBroadcast(false)
@@ -221,12 +204,12 @@ void setup() {
     .setBroadcast(true)
     ;
   yy += (h0 + s0);
-  // reposition the Label for controller 'toggle'
+  // Reposition the Label for controller 'toggle'
   cp5.getController("useCircleSwitch").getCaptionLabel().align(ControlP5.RIGHT_OUTSIDE, ControlP5.CENTER).setPaddingX(10).setColor(color(128));
 
   yy += t0; // some space for grouping
 
-  // create a toggle to enable/disable live preview: default is true
+  // Create a toggle to enable/disable live preview: default is true
   cp5.addToggle("previewSwitch")
     .setLabel("Live Preview")
     .setBroadcast(false)
@@ -236,13 +219,13 @@ void setup() {
     .setBroadcast(true)
     ;
   yy += (h0 + s0);
-  // reposition the Label for controller 'toggle'
+  // Reposition the Label for controller 'toggle'
   cp5.getController("previewSwitch").getCaptionLabel().align(ControlP5.RIGHT_OUTSIDE, ControlP5.CENTER).setPaddingX(10).setColor(color(128));
 
-  // skip
+  // Skip
   yy += (h0 + s0);
 
-  // create a new button with name 'saveAsSVGButton'
+  // Create a new button with name 'saveAsSVGButton'
   cp5.addButton("saveAsSVGButton")
     .setLabel("Save As SVG")
     .setBroadcast(false)
@@ -252,7 +235,7 @@ void setup() {
     ;
   yy += (h0 + s0);
 
-  // create a new button with name 'saveAsPDFButton'
+  // Create a new button with name 'saveAsPDFButton'
   cp5.addButton("saveAsPDFButton")
     .setLabel("Save As PDF")
     .setBroadcast(false)
@@ -262,11 +245,11 @@ void setup() {
     ;
   yy += (h0 + s0);
 
-  // reset position for next raw
+  // Reset position for next raw
   yy = y0;
   xx = x0 + 150;
 
-  //create a new text field to show feedback from the controller
+  // Create a new text field to show feedback from the controller
   feedbackText = cp5.addTextarea("feedback")
     .setSize(canvasWidth, h0 * 2)
     .setText("Load image to start")
@@ -288,10 +271,56 @@ public void controlEvent(ControlEvent theEvent) {
 public void openFileButton(int theValue) {
   selectInput("Select a file to process:", "fileSelected");
 }
+// Opens input file selection window and draws selected image to screen
+void fileSelected(File selection) {
+  if (selection == null) {
+    return;
+  }
+
+  String locImg = selection.getAbsolutePath();
+  // Check to see if the format is supported
+  // https://processing.org/reference/loadImage_.html
+  String ext = locImg.substring(locImg.lastIndexOf(".") + 1).toLowerCase();
+  if (!ext.equals("gif")
+    && !ext.equals("jpg") && !ext.equals("jpeg")
+    && !ext.equals("tga")
+    && !ext.equals("png")) {
+    feedbackText.setText(locImg + " is not supported format");
+    feedbackText.update();
+    return;
+  }
+
+  sourceImg = loadImage(locImg);
+  feedbackText.setText(locImg + " was succesfully opened");
+  feedbackText.update();
+  resizeImg();
+  displayImg = loadImage(locImg);
+  resizedisplayImg();
+
+  centerPointX = sourceImg.width / 2;
+  centerPointY = sourceImg.height / 2;
+  updateEndRadius();
+  // update GUI parts
+  cp5.getController("cernterPointXNumberbox").setValue(centerPointX);
+  cp5.getController("cernterPointXNumberbox").setMax(float(sourceImg.width - 1));
+  cp5.getController("cernterPointYNumberbox").setValue(centerPointY);
+  cp5.getController("cernterPointYNumberbox").setMax(float(sourceImg.height - 1));
+
+  // Everything went well.
+  sourceImgPath = locImg;
+  isLoaded = true;
+
+  if (usePreview) {
+    needToUpdatePreview = true;
+  } else {
+    clearCanvas();
+    drawImg();
+  }
+}
 
 // Button Event - generateSpiral: Convert image file to SVG
 public void generateSpiralButton(int theValue) {
-  if (locImg == "") {
+  if (!isLoaded) {
     feedbackText.setText("no image file is currently open!");
     feedbackText.update();
     return;
@@ -301,7 +330,7 @@ public void generateSpiralButton(int theValue) {
 
 // Clear the display of any loaded images
 public void clearDisplayButton(int theValue) {
-  if (locImg == "") {
+  if (!isLoaded) {
     clearDisplay();
     return;
   }
@@ -309,17 +338,9 @@ public void clearDisplayButton(int theValue) {
   drawImg();
 }
 
-// Recieve amplitude value from slider
-public void amplitudeSlider(float theValue) {
-  ampScale = theValue;
-  if (usePreview) {
-    needToUpdatePreview = true;
-  }
-}
-
 // Recieve wave distance value from slider
 public void distanceSlider(int theValue) {
-  dist = theValue;
+  distance = theValue;
   if (usePreview) {
     needToUpdatePreview = true;
   }
@@ -354,7 +375,7 @@ public void cernterPointYNumberbox(int theValue) {
 // Whether to make the data shape a circle or not
 public void useCircleSwitch(boolean theValue) {
   useCircleShape = theValue;
-  if (locImg == "") {
+  if (!isLoaded) {
     return;
   }
   updateEndRadius();
@@ -366,7 +387,7 @@ public void useCircleSwitch(boolean theValue) {
 // Change preview mode
 public void previewSwitch(boolean theValue) {
   usePreview = theValue;
-  if (locImg == "") {
+  if (!isLoaded) {
     return;
   }
   if (usePreview) {
@@ -374,73 +395,79 @@ public void previewSwitch(boolean theValue) {
   }
 }
 
-// Save As SVG
-public void saveAsSVGButton(int theValue) {
-  if (locImg == "") {
+// File path utils
+String createOutputFilename(String basePath, String ext) {
+  // get the filename of the image and remove the extension
+  // No check if extension exists
+  File file = new File(basePath);
+  String imageName = file.getName();
+  imageName = imageName.substring(0, imageName.lastIndexOf("."));
+  return imageName + "." + ext;
+}
+
+// Save the spiral in the specified format
+void saveAs(String format) {
+  if (!isLoaded) {
     feedbackText.setText("no image file is currently open!");
     feedbackText.update();
     return;
   }
+
+  // Construct filename
+  String ext = "";
+  if (format.equals(PDF)) {
+    ext = "pdf";
+  } else if (format.equals(SVG)) {
+    ext = "svg";
+  } else {
+    feedbackText.setText("format \"" + format + "\"" + " is not supported!");
+    feedbackText.update();
+    return;
+  }
+  String fileName = createOutputFilename(sourceImgPath, ext);
+
   needToUpdatePreview = false;
 
-  // Update SVG by current parameter
+  // Update spiral by current parameter
   drawSpiral();
 
-  // Save As SVG
+  // Prepare
   int w = sourceImg.width;
   int h = sourceImg.height;
   if (useCircleShape) {
     w = int(endRadius * 2) + 1;
     h = int(endRadius * 2) + 1;
   }
-  PGraphics pg = createGraphics(w, h, SVG, outputSVGName);
+
+  // Draw it!
+  PGraphics pg = createGraphics(w, h, format, fileName);
   pg.beginDraw();
   if (useCircleShape) {
-    pg.translate(endRadius - centerPointX , endRadius - centerPointY);
+    pg.translate(endRadius - centerPointX, endRadius - centerPointY);
   }
   pg.shape(outputSpiral);
+  pg.dispose();
   pg.endDraw();
-  feedbackText.setText(locImg+" was processed and saved as "+sketchPath(outputSVGName));
+
+  // Done.
+  feedbackText.setText("saved as " + sketchPath(fileName));
   feedbackText.update();
 
   needToUpdatePreview = true;
+}
+
+// Save As SVG
+public void saveAsSVGButton(int theValue) {
+  saveAs(SVG);
 }
 
 // Save As PDF
 public void saveAsPDFButton(int theValue) {
-  if (locImg == "") {
-    feedbackText.setText("no image file is currently open!");
-    feedbackText.update();
-    return;
-  }
-  needToUpdatePreview = false;
-
-  // Update PDF by current parameter
-  drawSpiral();
-
-  // Save As PDF
-  int w = sourceImg.width;
-  int h = sourceImg.height;
-  if (useCircleShape) {
-    w = int(endRadius * 2) + 1;
-    h = int(endRadius * 2) + 1;
-  }
-  PGraphics pg = createGraphics(w, h, PDF, outputPDFName);
-  pg.beginDraw();
-  if (useCircleShape) {
-    pg.translate(endRadius - centerPointX , endRadius - centerPointY);
-  }
-  pg.shape(outputSpiral);
-  pg.dispose(); // This is necessary in order to write PDF correctly.
-  pg.endDraw();
-  feedbackText.setText(locImg+" was processed and saved as "+sketchPath(outputPDFName));
-  feedbackText.update();
-
-  needToUpdatePreview = true;
+  saveAs(PDF);
 }
 
-//Redraw background elements to remove previous loaded PImage
-void drawBackground () {
+// Redraw background elements to remove previous loaded PImage
+void drawBackground() {
   noStroke();
   background(235);
   fill(245);
@@ -452,7 +479,7 @@ void drawBackground () {
 void clearCanvas() {
   noStroke();
   fill(245);
-  rect(canvasOriginX - 12, canvasOriginY - 10 , 12 + canvasWidth + 12, 10 + canvasHeight + 10);
+  rect(canvasOriginX - 12, canvasOriginY - 10, 12 + canvasWidth + 12, 10 + canvasHeight + 10);
 }
 
 void draw() {
@@ -462,128 +489,75 @@ void draw() {
   }
 }
 
-//Opens input file selection window and draws selected image to screen
-void fileSelected(File selection) {
-  if (selection == null) {
-    return;
-  }
-
-  locImg=selection.getAbsolutePath();
-  feedbackText.setText(locImg+" was succesfully opened");
-  feedbackText.update();
-  sourceImg=loadImage(locImg);
-  resizeImg();
-  displayImg=loadImage(locImg);
-  resizedisplayImg();
-
-  centerPointX = sourceImg.width / 2;
-  centerPointY = sourceImg.height / 2;
-  updateEndRadius();
-  // update GUI parts
-  cp5.getController("cernterPointXNumberbox").setValue(centerPointX);
-  cp5.getController("cernterPointXNumberbox").setMax(float(sourceImg.width-1));
-  cp5.getController("cernterPointYNumberbox").setValue(centerPointY);
-  cp5.getController("cernterPointYNumberbox").setMax(float(sourceImg.height-1));
-
-  // get the filename of the image and remove the extension
-  // No check if extension exists
-  file = new File(locImg);
-  imageName = file.getName();
-  imageName = imageName.substring(0, imageName.lastIndexOf("."));
-  outputSVGName = imageName+".svg";
-  outputPDFName = imageName+".pdf";
-
-  if (usePreview) {
-    needToUpdatePreview = true;
-  } else {
-    clearCanvas();
-    drawImg();
-  }
-}
-
-// Function to creatve SVG file from loaded image file - Transparencys currently do not work as a mask colour
+// Function to creatve spiral shape from loaded image file - Transparency zero work as a mask colour
 void drawSpiral() {
-  float radius = dist/2;                     // Current radius
-  float alpha;                               // Initial rotation
-  float k;                                   // current radius
-  boolean shapeOn = false;                   // Keeps track of a shape is open or closed
-  
-  if (locImg == "") {
+  if (!isLoaded) {
     return;
   }
-  
+
   // Calculates the first point
-  k = density/radius;
-  alpha = k;
-  radius = dist/(360/k);
+  float delta;
+  float degree = density * 2 / (distance / 2);
+  float radius = distance / (360 / degree);
+  float rad = radians(degree);
 
   outputSpiral = createShape(GROUP);
   PShape s = createShape();
+  boolean shapeOn = false; // Keeps track of a shape is open or closed
+  while (radius < endRadius) {  // Have we reached the far corner of the image?
+    float x = radius * cos(rad) + centerPointX;
+    float y = -radius * sin(rad) + centerPointY;
 
-  // Have we reached the far corner of the image?
-  while (radius < endRadius) {
-    float x, y, xa, ya, xb, yb; // current X and y + jittered x and y
-    k = (density/2)/radius ;
-    alpha += k;
-    radius += dist/(360/k);
-    x =  radius*cos(radians(alpha))+centerPointX;
-    y = -radius*sin(radians(alpha))+centerPointY;
+    // Get the color and brightness of the sampled pixel
+    color c = sourceImg.get(int(x), int(y)); // Sampled color
+    float a = alpha(c);                      // Sampled alpha (transparency 0 .. 255)
 
     // Are we within the the image?
     // If so check if the shape is open. If not, open it
-    if ((x>=0) && (x<sourceImg.width) && (y>=0) && (y<sourceImg.height)) {
-      color c;       // Sampled color
-      float b;       // Sampled brightness
-      float aradius; // Radius with brighness applied up
-      float bradius; // Radius with brighness applied down
-
-      // Get the color and brightness of the sampled pixel
-      c = sourceImg.get (int(x), int(y));
-      b = brightness(c);
-      b = map (b, 0, 255, dist*ampScale, 0);
-
+    if ((a != 0.0) && (x >= 0) && (x < sourceImg.width) && (y >= 0) && (y < sourceImg.height)) {
+      float b = map(brightness(c), 0, 255, distance / 2, 0); // Sampled brightness
       // Move up according to sampled brightness
-      aradius = radius+(b/dist);
-      xa =  aradius*cos(radians(alpha))+centerPointX;
-      ya = -aradius*sin(radians(alpha))+centerPointY;
+      float aradius = radius + b; // Radius with brighness applied up
+      float xa =  aradius * cos(rad) + centerPointX;
+      float ya = -aradius * sin(rad) + centerPointY;
 
       // Move down according to sampled brightness
-      k = (density/2)/radius ;
-      alpha += k;
-      radius += dist/(360/k);
-      bradius = radius-(b/dist);
-      xb =  bradius*cos(radians(alpha))+centerPointX;
-      yb = -bradius*sin(radians(alpha))+centerPointY;
+      delta = density / radius;
+      degree += delta;
+      radius += distance / (360 / delta);
+      rad = radians(degree);
 
-      // If the sampled color is the mask color do not write to the shape
-      if (mask == c) {
-        if (shapeOn) {
-          s.endShape();
-          outputSpiral.addChild(s);
-          shapeOn = false;
-        }
-      } else {
-        // Add vertices to shape
-        if (shapeOn == false) {
-          s = createShape();
-          s.setStroke(true);
-          s.setFill(false);
-          s.setStrokeJoin(ROUND);
-          s.beginShape();
-          shapeOn = true;
-        }
-        s.vertex(xa, ya);
-        s.vertex(xb, yb);
+      float bradius = radius - b; // Radius with brighness applied down
+      float xb =  bradius * cos(rad) + centerPointX;
+      float yb = -bradius * sin(rad) + centerPointY;
+
+      // Add vertices to shape
+      if (shapeOn == false) {
+        s = createShape();
+        s.setStroke(true);
+        s.setFill(false);
+        s.setStrokeJoin(ROUND);
+        s.beginShape();
+        shapeOn = true;
       }
+      s.vertex(xa, ya);
+      s.vertex(xb, yb);
     } else {
-      // We are outside of the image so close the shape if it is open
-      if (shapeOn == true) {
+      // We are outside of the image or transparency is zero, so close the shape if it is open
+      if (shapeOn) {
         s.endShape();
         outputSpiral.addChild(s);
         shapeOn = false;
       }
     }
+    // Next
+    delta = density / radius;
+    degree += delta;
+    radius += distance / (360 / delta);
+    rad = radians(degree);
   }
+
+  // end of loop
   if (shapeOn) {
     s.endShape();
     outputSpiral.addChild(s);
@@ -596,7 +570,7 @@ void drawSpiral() {
 
 void displaySVG() {
   clearCanvas();
-  
+
   pushMatrix();
   translate(canvasOriginX, canvasOriginY);
   scale(float(displayImgSize) / float(internalImgSize));
@@ -606,28 +580,28 @@ void displaySVG() {
 
 void resizeImg() {
   if (sourceImg.width > sourceImg.height) {
-    sourceImg.resize (internalImgSize, 0);
+    sourceImg.resize(internalImgSize, 0);
   } else {
-    sourceImg.resize (0, internalImgSize);
+    sourceImg.resize(0, internalImgSize);
   }
 }
 
 void resizedisplayImg() {
   if (displayImg.width > displayImg.height) {
-    displayImg.resize (canvasWidth, 0);
+    displayImg.resize(canvasWidth, 0);
   } else {
-    displayImg.resize (0, canvasHeight);
+    displayImg.resize(0, canvasHeight);
   }
 }
 
-void drawImg () {
+void drawImg() {
   set(canvasOriginX, canvasOriginY, displayImg);
 }
 
 void clearDisplay() {
   background(235);
   drawBackground();
-  if (locImg == "") {
+  if (!isLoaded) {
     feedbackText.setText("Load image to start");
   }
   System.gc();
@@ -651,17 +625,17 @@ float getMaxRadius() {
   // r0 | r1
   //----+----
   // r2 | r3
-  float r0 = sqrt(pow(centerPointX+1, 2) + pow(centerPointY+1, 2));
-  float r1 = sqrt(pow(sourceImg.width - centerPointX, 2)+pow(centerPointY+1, 2));
-  float r2 = sqrt(pow(centerPointX+1, 2) + pow(sourceImg.height - centerPointY, 2));
-  float r3 = sqrt(pow(sourceImg.width - centerPointX, 2)+pow(sourceImg.height - centerPointY, 2));
+  float r0 = sqrt(pow(centerPointX + 1, 2) + pow(centerPointY + 1, 2));
+  float r1 = sqrt(pow(sourceImg.width - centerPointX, 2) + pow(centerPointY + 1, 2));
+  float r2 = sqrt(pow(centerPointX + 1, 2) + pow(sourceImg.height - centerPointY, 2));
+  float r3 = sqrt(pow(sourceImg.width - centerPointX, 2) + pow(sourceImg.height - centerPointY, 2));
   return max(max(r0, r1), max(r2, r3));
 }
 
 float getMinRadius() {
   // Search the nearest edge of the image
-  float r0 = centerPointX+1;
-  float r1 = centerPointY+1;
+  float r0 = centerPointX + 1;
+  float r1 = centerPointY + 1;
   float r2 = sourceImg.height - centerPointY;
   float r3 = sourceImg.width - centerPointX;
   return min(min(r0, r1), min(r2, r3));
@@ -672,26 +646,26 @@ float getMinRadius() {
 //
 
 boolean inCanvas() {
-  return (mouseX >= canvasOriginX && mouseX < (canvasOriginX + displayImg.width) && 
-          mouseY >= canvasOriginY && mouseY < (canvasOriginY + displayImg.height));
+  return(mouseX >= canvasOriginX && mouseX < (canvasOriginX + displayImg.width) &&
+    mouseY >= canvasOriginY && mouseY < (canvasOriginY + displayImg.height));
 }
 
 boolean mouseLocked = false;
 
 void mousePressed() {
-  if (locImg == "") {
+  if (!isLoaded) {
     return;
   }
 
   if (mouseButton == LEFT) {
-    if (inCanvas()) { 
-      mouseLocked = true; 
+    if (inCanvas()) {
+      mouseLocked = true;
       centerPointX = int(float(mouseX - canvasOriginX) * float(internalImgSize) / float(displayImgSize));
       centerPointY = int(float(mouseY - canvasOriginY) * float(internalImgSize) / float(displayImgSize));
       // update GUI parts
       cp5.getController("cernterPointXNumberbox").setValue(centerPointX);
       cp5.getController("cernterPointYNumberbox").setValue(centerPointY);
-      
+
       updateEndRadius();
       if (usePreview) {
         needToUpdatePreview = true;

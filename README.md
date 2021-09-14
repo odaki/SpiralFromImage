@@ -13,3 +13,10 @@ Will export SVG and also PDF.
 - support live preview
 - support PDF export
 - choose centerpoint with mouse or numeric box
+
+  1.4
+
+- support transparency
+- remove mask color function
+- check to see if the image format is supported on open
+- automatically calculate ampScale
