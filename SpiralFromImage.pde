@@ -57,7 +57,7 @@ PImage sourceImg;                          // Source image for conversion
 PImage displayImg;                         // Image to use as display
 
 float distance = 5;                        // Distance between rings
-float density = 75;                        // Density
+float density = 36;                        // Density
 int centerPointX = internalImgSize / 2;    // Center point of spiral
 int centerPointY = internalImgSize / 2;    // Center point of spiral
 float endRadius = internalImgSize / 2;     // Largest value the spiral needs to cover the image
@@ -149,7 +149,7 @@ void setupGUI() {
   cp5.addSlider("densitySlider")
     .setBroadcast(false)
     .setLabel("Density")
-    .setRange(75, 360)
+    .setRange(36, 180)
     .setValue(density)
     .setPosition(xx, yy)
     .setSize(w0, h0)
@@ -496,40 +496,40 @@ void drawSpiral() {
   }
 
   // Calculates the first point
-  float degree = density / (distance / 2);
+  float delta;
+  float degree = density * 2 / (distance / 2);
   float radius = distance / (360 / degree);
+  float rad = radians(degree);
 
   outputSpiral = createShape(GROUP);
   PShape s = createShape();
   boolean shapeOn = false; // Keeps track of a shape is open or closed
   while (radius < endRadius) {  // Have we reached the far corner of the image?
-    float delta = (density / 2) / radius;
-    degree += delta;
-    radius += distance / (360 / delta);
-    float x = radius * cos(radians(degree)) + centerPointX;
-    float y = -radius * sin(radians(degree)) + centerPointY;
-
-    // Are we within the the image?
-    // If so check if the shape is open. If not, open it
+    float x = radius * cos(rad) + centerPointX;
+    float y = -radius * sin(rad) + centerPointY;
 
     // Get the color and brightness of the sampled pixel
     color c = sourceImg.get(int(x), int(y)); // Sampled color
     float a = alpha(c);                      // Sampled alpha (transparency 0 .. 255)
+
+    // Are we within the the image?
+    // If so check if the shape is open. If not, open it
     if ((a != 0.0) && (x >= 0) && (x < sourceImg.width) && (y >= 0) && (y < sourceImg.height)) {
       float b = map(brightness(c), 0, 255, distance / 2, 0); // Sampled brightness
       // Move up according to sampled brightness
       float aradius = radius + b; // Radius with brighness applied up
-      float xa =  aradius * cos(radians(degree)) + centerPointX;
-      float ya = -aradius * sin(radians(degree)) + centerPointY;
+      float xa =  aradius * cos(rad) + centerPointX;
+      float ya = -aradius * sin(rad) + centerPointY;
 
       // Move down according to sampled brightness
-      delta = (density / 2) / radius;
+      delta = density / radius;
       degree += delta;
       radius += distance / (360 / delta);
+      rad = radians(degree);
 
       float bradius = radius - b; // Radius with brighness applied down
-      float xb =  bradius * cos(radians(degree)) + centerPointX;
-      float yb = -bradius * sin(radians(degree)) + centerPointY;
+      float xb =  bradius * cos(rad) + centerPointX;
+      float yb = -bradius * sin(rad) + centerPointY;
 
       // Add vertices to shape
       if (shapeOn == false) {
@@ -550,6 +550,11 @@ void drawSpiral() {
         shapeOn = false;
       }
     }
+    // Next
+    delta = density / radius;
+    degree += delta;
+    radius += distance / (360 / delta);
+    rad = radians(degree);
   }
 
   // end of loop
