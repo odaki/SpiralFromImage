@@ -8,13 +8,13 @@ Will export SVG and also PDF.
 
 ## forked version
 
-1.3
+v1.3
 
 - support live preview
 - support PDF export
 - choose centerpoint with mouse or numeric box
 
-  1.4
+v1.4
 
 - support transparency
 - remove mask color function
