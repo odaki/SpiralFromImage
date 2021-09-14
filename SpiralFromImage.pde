@@ -25,6 +25,7 @@
 // 1.X support transparency
 //     remove mask color function
 //     check to see if the image format is supported on open
+//     automatically calculate ampScale
 //
 // SpiralfromImage is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -57,7 +58,6 @@ PImage displayImg;                         // Image to use as display
 
 float distance = 5;                        // Distance between rings
 float density = 75;                        // Density
-float ampScale = 2.4;                      // Controls the amplitude
 int centerPointX = internalImgSize / 2;    // Center point of spiral
 int centerPointY = internalImgSize / 2;    // Center point of spiral
 float endRadius = internalImgSize / 2;     // Largest value the spiral needs to cover the image
@@ -126,23 +126,6 @@ void setupGUI() {
     .setBroadcast(true)
     ;
   yy += (h0 + s0);
-
-  // Create a new slider to set amplitude of waves drawn: default value is 2.4
-  yy += t0; // need spece for the label
-  cp5.addSlider("amplitudeSlider")
-    .setBroadcast(false)
-    .setLabel("Wave amplitude")
-    .setRange(1, 8)
-    .setValue(2.4)
-    .setPosition(xx, yy)
-    .setSize(w0, h0)
-    .setSliderMode(Slider.FLEXIBLE)
-    .setDecimalPrecision(1)
-    .setBroadcast(true)
-    ;
-  yy += (h0 + s0);
-  // Reposition the Label for controller 'slider'
-  cp5.getController("amplitudeSlider").getCaptionLabel().align(ControlP5.LEFT, ControlP5.TOP_OUTSIDE).setPaddingX(0).setColor(color(128));
 
   // Create a new slider to set distance between rings: default value is 5
   yy += t0; // need spece for the label
@@ -355,14 +338,6 @@ public void clearDisplayButton(int theValue) {
   drawImg();
 }
 
-// Recieve amplitude value from slider
-public void amplitudeSlider(float theValue) {
-  ampScale = theValue;
-  if (usePreview) {
-    needToUpdatePreview = true;
-  }
-}
-
 // Recieve wave distance value from slider
 public void distanceSlider(int theValue) {
   distance = theValue;
@@ -523,13 +498,12 @@ void drawSpiral() {
   // Calculates the first point
   float degree = density / (distance / 2);
   float radius = distance / (360 / degree);
-  float delta;
 
   outputSpiral = createShape(GROUP);
   PShape s = createShape();
   boolean shapeOn = false; // Keeps track of a shape is open or closed
   while (radius < endRadius) {  // Have we reached the far corner of the image?
-    delta = (density / 2) / radius;
+    float delta = (density / 2) / radius;
     degree += delta;
     radius += distance / (360 / delta);
     float x = radius * cos(radians(degree)) + centerPointX;
@@ -542,9 +516,9 @@ void drawSpiral() {
     color c = sourceImg.get(int(x), int(y)); // Sampled color
     float a = alpha(c);                      // Sampled alpha (transparency 0 .. 255)
     if ((a != 0.0) && (x >= 0) && (x < sourceImg.width) && (y >= 0) && (y < sourceImg.height)) {
-      float b = map(brightness(c), 0, 255, distance * ampScale, 0); // Sampled brightness
+      float b = map(brightness(c), 0, 255, distance / 2, 0); // Sampled brightness
       // Move up according to sampled brightness
-      float aradius = radius + (b / distance); // Radius with brighness applied up
+      float aradius = radius + b; // Radius with brighness applied up
       float xa =  aradius * cos(radians(degree)) + centerPointX;
       float ya = -aradius * sin(radians(degree)) + centerPointY;
 
@@ -553,7 +527,7 @@ void drawSpiral() {
       degree += delta;
       radius += distance / (360 / delta);
 
-      float bradius = radius - (b / distance); // Radius with brighness applied down
+      float bradius = radius - b; // Radius with brighness applied down
       float xb =  bradius * cos(radians(degree)) + centerPointX;
       float yb = -bradius * sin(radians(degree)) + centerPointY;
 
