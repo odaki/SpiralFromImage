@@ -430,71 +430,65 @@ String createOutputFilename(String basePath, String ext) {
   return imageName + "." + ext;
 }
 
-// Save As SVG
-public void saveAsSVGButton(int theValue) {
+// Save the spiral in the specified format
+void saveAs(String format) {
   if (!isLoaded) {
     feedbackText.setText("no image file is currently open!");
     feedbackText.update();
     return;
   }
+
+  // Construct filename
+  String ext = "";
+  if (format.equals(PDF)) {
+    ext = "pdf";
+  } else if (format.equals(SVG)) {
+    ext = "svg";
+  } else {
+    feedbackText.setText("format \"" + format + "\"" + " is not supported!");
+    feedbackText.update();
+    return;
+  }
+  String fileName = createOutputFilename(sourceImgPath, ext);
+
   needToUpdatePreview = false;
 
   // Update spiral by current parameter
   drawSpiral();
 
-  // Save As SVG
+  // Prepare
   int w = sourceImg.width;
   int h = sourceImg.height;
   if (useCircleShape) {
     w = int(endRadius * 2) + 1;
     h = int(endRadius * 2) + 1;
   }
-  String outputFilename = createOutputFilename(sourceImgPath, "svg");
-  PGraphics pg = createGraphics(w, h, SVG, outputFilename);
+
+  // Draw it!
+  PGraphics pg = createGraphics(w, h, format, fileName);
   pg.beginDraw();
   if (useCircleShape) {
     pg.translate(endRadius - centerPointX, endRadius - centerPointY);
   }
   pg.shape(outputSpiral);
+  pg.dispose();
   pg.endDraw();
-  feedbackText.setText(sourceImgPath + " was processed and saved as " + sketchPath(outputFilename));
+
+  // Done.
+  feedbackText.setText("saved as " + sketchPath(fileName));
   feedbackText.update();
 
   needToUpdatePreview = true;
 }
 
+// Save As SVG
+public void saveAsSVGButton(int theValue) {
+  saveAs(SVG);
+}
+
 // Save As PDF
 public void saveAsPDFButton(int theValue) {
-  if (!isLoaded) {
-    feedbackText.setText("no image file is currently open!");
-    feedbackText.update();
-    return;
-  }
-  needToUpdatePreview = false;
-
-  // Update spiral by current parameter
-  drawSpiral();
-
-  // Save As PDF
-  int w = sourceImg.width;
-  int h = sourceImg.height;
-  if (useCircleShape) {
-    w = int(endRadius * 2) + 1;
-    h = int(endRadius * 2) + 1;
-  }
-  String outputFilename = createOutputFilename(sourceImgPath, "pdf");
-  PGraphics pg = createGraphics(w, h, PDF, outputFilename);
-  pg.beginDraw();
-  if (useCircleShape) {
-    pg.translate(endRadius - centerPointX, endRadius - centerPointY);
-  }
-  pg.shape(outputSpiral);
-  pg.dispose(); // This is necessary in order to write PDF correctly.
-  pg.endDraw();
-  feedbackText.setText(sourceImgPath + " was processed and saved as " + sketchPath(outputFilename));
-  feedbackText.update();
-
-  needToUpdatePreview = true;
+  saveAs(PDF);
 }
 
 // Redraw background elements to remove previous loaded PImage
