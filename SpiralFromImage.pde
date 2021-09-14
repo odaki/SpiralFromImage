@@ -55,7 +55,7 @@ boolean isLoaded = false;                  // Whether the source image has been 
 PImage sourceImg;                          // Source image for conversion
 PImage displayImg;                         // Image to use as display
 
-float dist = 5;                            // Distance between rings
+float distance = 5;                        // Distance between rings
 float density = 75;                        // Density
 float ampScale = 2.4;                      // Controls the amplitude
 int centerPointX = internalImgSize / 2;    // Center point of spiral
@@ -365,7 +365,7 @@ public void amplitudeSlider(float theValue) {
 
 // Recieve wave distance value from slider
 public void distanceSlider(int theValue) {
-  dist = theValue;
+  distance = theValue;
   if (usePreview) {
     needToUpdatePreview = true;
   }
@@ -516,30 +516,24 @@ void draw() {
 
 // Function to creatve spiral shape from loaded image file - Transparency zero work as a mask colour
 void drawSpiral() {
-  float radius = dist / 2; // Current radius
-  float alpha;             // Initial rotation
-  float k;                 // current radius
-  boolean shapeOn = false; // Keeps track of a shape is open or closed
-
   if (!isLoaded) {
     return;
   }
 
   // Calculates the first point
-  k = density / radius;
-  alpha = k;
-  radius = dist / (360 / k);
+  float degree = density / (distance / 2);
+  float radius = distance / (360 / degree);
+  float delta;
 
   outputSpiral = createShape(GROUP);
   PShape s = createShape();
-
-  // Have we reached the far corner of the image?
-  while (radius < endRadius) {
-    k = (density / 2) / radius;
-    alpha += k;
-    radius += dist / (360 / k);
-    float x = radius * cos(radians(alpha)) + centerPointX;
-    float y = -radius * sin(radians(alpha)) + centerPointY;
+  boolean shapeOn = false; // Keeps track of a shape is open or closed
+  while (radius < endRadius) {  // Have we reached the far corner of the image?
+    delta = (density / 2) / radius;
+    degree += delta;
+    radius += distance / (360 / delta);
+    float x = radius * cos(radians(degree)) + centerPointX;
+    float y = -radius * sin(radians(degree)) + centerPointY;
 
     // Are we within the the image?
     // If so check if the shape is open. If not, open it
@@ -548,20 +542,20 @@ void drawSpiral() {
     color c = sourceImg.get(int(x), int(y)); // Sampled color
     float a = alpha(c);                      // Sampled alpha (transparency 0 .. 255)
     if ((a != 0.0) && (x >= 0) && (x < sourceImg.width) && (y >= 0) && (y < sourceImg.height)) {
-      float b = map(brightness(c), 0, 255, dist * ampScale, 0); // Sampled brightness
+      float b = map(brightness(c), 0, 255, distance * ampScale, 0); // Sampled brightness
       // Move up according to sampled brightness
-      float aradius = radius + (b / dist); // Radius with brighness applied up
-      float xa =  aradius * cos(radians(alpha)) + centerPointX;
-      float ya = -aradius * sin(radians(alpha)) + centerPointY;
+      float aradius = radius + (b / distance); // Radius with brighness applied up
+      float xa =  aradius * cos(radians(degree)) + centerPointX;
+      float ya = -aradius * sin(radians(degree)) + centerPointY;
 
       // Move down according to sampled brightness
-      k = (density / 2) / radius;
-      alpha += k;
-      radius += dist / (360 / k);
+      delta = (density / 2) / radius;
+      degree += delta;
+      radius += distance / (360 / delta);
 
-      float bradius = radius - (b / dist); // Radius with brighness applied down
-      float xb =  bradius * cos(radians(alpha)) + centerPointX;
-      float yb = -bradius * sin(radians(alpha)) + centerPointY;
+      float bradius = radius - (b / distance); // Radius with brighness applied down
+      float xb =  bradius * cos(radians(degree)) + centerPointX;
+      float yb = -bradius * sin(radians(degree)) + centerPointY;
 
       // Add vertices to shape
       if (shapeOn == false) {
@@ -576,7 +570,7 @@ void drawSpiral() {
       s.vertex(xb, yb);
     } else {
       // We are outside of the image or transparency is zero, so close the shape if it is open
-      if (shapeOn == true) {
+      if (shapeOn) {
         s.endShape();
         outputSpiral.addChild(s);
         shapeOn = false;
