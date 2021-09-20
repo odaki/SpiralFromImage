@@ -504,7 +504,7 @@ void drawSpiral() {
   outputSpiral = createShape(GROUP);
   PShape s = createShape();
   boolean shapeOn = false; // Keeps track of a shape is open or closed
-  while (radius < endRadius) {  // Have we reached the far corner of the image?
+  while ((radius + distance / 2) < endRadius) {  // Have we reached the far corner of the image?
     float x = radius * cos(rad) + centerPointX;
     float y = -radius * sin(rad) + centerPointY;
 
