@@ -478,8 +478,8 @@ void drawBackground() {
 
 void clearCanvas() {
   noStroke();
-  fill(245);
-  rect(canvasOriginX - 12, canvasOriginY - 10, 12 + canvasWidth + 12, 10 + canvasHeight + 10);
+  fill(255);
+  rect(canvasOriginX, canvasOriginY, canvasWidth, canvasHeight);
 }
 
 void draw() {
@@ -489,7 +489,29 @@ void draw() {
   }
 }
 
+// Utility functions
+PShape startSpiralStroke() {
+  PShape s = createShape();
+  s.setStroke(true);
+  s.setFill(false);
+  s.setStrokeJoin(ROUND);
+  s.beginShape();
+  return s;
+}
+
+void drawSpiralStroke(PShape s, float xa, float ya, float xb, float yb) {
+  s.vertex(xa, ya);
+  s.vertex(xb, yb);
+}
+
+void endSpiralStroke(PShape s, PShape parent) {
+  s.endShape();
+  parent.addChild(s);
+}
+
+//
 // Function to creatve spiral shape from loaded image file - Transparency zero work as a mask colour
+//
 void drawSpiral() {
   if (!isLoaded) {
     return;
@@ -514,7 +536,9 @@ void drawSpiral() {
 
     // Are we within the the image?
     // If so check if the shape is open. If not, open it
-    if ((a != 0.0) && (x >= 0) && (x < sourceImg.width) && (y >= 0) && (y < sourceImg.height)) {
+    if ((a != 0.0)
+      && (x > distance / 2) && ((x + distance / 2) < sourceImg.width)
+      && (y > distance / 2) && ((y + distance / 2) < sourceImg.height)) {
       float b = map(brightness(c), 0, 255, distance / 2, 0); // Sampled brightness
       // Move up according to sampled brightness
       float aradius = radius + b; // Radius with brighness applied up
@@ -533,20 +557,15 @@ void drawSpiral() {
 
       // Add vertices to shape
       if (shapeOn == false) {
-        s = createShape();
-        s.setStroke(true);
-        s.setFill(false);
-        s.setStrokeJoin(ROUND);
-        s.beginShape();
+        s = startSpiralStroke();
         shapeOn = true;
       }
-      s.vertex(xa, ya);
-      s.vertex(xb, yb);
+      // Draw lines (from previous (xb, yb) to (xa, ya), then from (xa, ya) to (xb, yb)
+      drawSpiralStroke(s, xa, ya, xb, yb);
     } else {
       // We are outside of the image or transparency is zero, so close the shape if it is open
       if (shapeOn) {
-        s.endShape();
-        outputSpiral.addChild(s);
+        endSpiralStroke(s, outputSpiral);
         shapeOn = false;
       }
     }
@@ -559,8 +578,7 @@ void drawSpiral() {
 
   // end of loop
   if (shapeOn) {
-    s.endShape();
-    outputSpiral.addChild(s);
+    endSpiralStroke(s, outputSpiral);
   }
 
   displaySVG();
@@ -625,20 +643,20 @@ float getMaxRadius() {
   // r0 | r1
   //----+----
   // r2 | r3
-  float r0 = sqrt(pow(centerPointX + 1, 2) + pow(centerPointY + 1, 2));
-  float r1 = sqrt(pow(sourceImg.width - centerPointX, 2) + pow(centerPointY + 1, 2));
-  float r2 = sqrt(pow(centerPointX + 1, 2) + pow(sourceImg.height - centerPointY, 2));
+  float r0 = sqrt(pow(centerPointX, 2) + pow(centerPointY, 2));
+  float r1 = sqrt(pow(sourceImg.width - centerPointX, 2) + pow(centerPointY, 2));
+  float r2 = sqrt(pow(centerPointX, 2) + pow(sourceImg.height - centerPointY, 2));
   float r3 = sqrt(pow(sourceImg.width - centerPointX, 2) + pow(sourceImg.height - centerPointY, 2));
-  return max(max(r0, r1), max(r2, r3));
+  return (float)Math.floor(max(max(r0, r1), max(r2, r3)));
 }
 
 float getMinRadius() {
   // Search the nearest edge of the image
-  float r0 = centerPointX + 1;
-  float r1 = centerPointY + 1;
+  float r0 = centerPointX;
+  float r1 = centerPointY;
   float r2 = sourceImg.height - centerPointY;
   float r3 = sourceImg.width - centerPointX;
-  return min(min(r0, r1), min(r2, r3));
+  return (float)Math.floor(min(min(r0, r1), min(r2, r3)));
 }
 
 //
