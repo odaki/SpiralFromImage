@@ -28,6 +28,7 @@
 //     automatically calculate ampScale
 // 1.5 rename clear display button to view original
 //     fixed the spiral data could be out of the display size range
+//     support drawing in white on a black canvas
 //
 // SpiralfromImage is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -60,18 +61,22 @@ PImage displayImg;                         // Image to use as display
 
 float distance = 5;                        // Distance between rings
 float density = 36;                        // Density
+
 int centerPointX = internalImgSize / 2;    // Center point of spiral
 int centerPointY = internalImgSize / 2;    // Center point of spiral
 float endRadius = internalImgSize / 2;     // Largest value the spiral needs to cover the image
 PShape outputSpiral;                       // Spriral shape to draw
 
+boolean useWhitePen = false;
 boolean useCircleShape = false;
 boolean usePreview = true;
+
+// internal state variables
 boolean needToUpdatePreview = false;
 
-int canvasOriginX = 187;
-int canvasOriginY = 85;
-int guiBorder = 12;
+final int canvasOriginX = 187;
+final int canvasOriginY = 85;
+final int guiBorder = 12;
 
 int canvasWidth = displayImgSize;
 int canvasHeight = displayImgSize;
@@ -109,6 +114,8 @@ void setupGUI() {
     ;
   yy += (h0 + s0);
 
+  yy += t0; // some space for grouping
+
   // Create a new button with name 'generateSpiralButton'
   cp5.addButton("generateSpiralButton")
     .setLabel("Generate Spiral")
@@ -128,6 +135,23 @@ void setupGUI() {
     .setBroadcast(true)
     ;
   yy += (h0 + s0);
+
+  yy += t0; // some space for grouping
+
+  // Create a toggle to use white pen or not: default is false
+  cp5.addToggle("useWhitePenSwitch")
+    .setLabel("Use white pen")
+    .setBroadcast(false)
+    .setPosition(xx, yy)
+    .setSize(h0, h0)
+    .setValue(useWhitePen)
+    .setBroadcast(true)
+    ;
+  yy += (h0 + s0);
+  // Reposition the Label for controller 'toggle'
+  cp5.getController("useWhitePenSwitch").getCaptionLabel().align(ControlP5.RIGHT_OUTSIDE, ControlP5.CENTER).setPaddingX(10).setColor(color(128));
+
+  yy += t0; // some space for grouping
 
   // Create a new slider to set distance between rings: default value is 5
   yy += t0; // need spece for the label
@@ -340,6 +364,18 @@ public void viewOriginalButton(int theValue) {
   drawImg();
 }
 
+// Whether to use the white pen or not
+public void useWhitePenSwitch(boolean theValue) {
+  useWhitePen = theValue;
+  if (!isLoaded) {
+    return;
+  }
+  updatePenColor();
+  if (usePreview) {
+    needToUpdatePreview = true;
+  }
+}
+
 // Recieve wave distance value from slider
 public void distanceSlider(int theValue) {
   distance = theValue;
@@ -437,15 +473,20 @@ void saveAs(String format) {
   int w = sourceImg.width;
   int h = sourceImg.height;
   if (useCircleShape) {
-    w = int(endRadius * 2) + 1;
-    h = int(endRadius * 2) + 1;
+    w = int(endRadius * 2);
+    h = int(endRadius * 2);
   }
 
   // Draw it!
   PGraphics pg = createGraphics(w, h, format, fileName);
   pg.beginDraw();
+  pg.noStroke();
+  pg.fill(canvasColor);
   if (useCircleShape) {
     pg.translate(endRadius - centerPointX, endRadius - centerPointY);
+    pg.circle(centerPointX, centerPointY, w);
+  } else {
+    pg.rect(0, 0, w, h);
   }
   pg.shape(outputSpiral);
   pg.dispose();
@@ -468,6 +509,20 @@ public void saveAsPDFButton(int theValue) {
   saveAs(PDF);
 }
 
+color penColor = 0;
+color canvasColor = 255;
+
+// Update Pen Color
+void updatePenColor() {
+  if (useWhitePen) {
+    penColor = color(255);
+    canvasColor = color(0);
+  } else {
+    penColor = color(0);
+    canvasColor = color(255);
+  }
+}
+
 // Redraw background elements to remove previous loaded PImage
 void drawBackground() {
   noStroke();
@@ -480,7 +535,7 @@ void drawBackground() {
 
 void clearCanvas() {
   noStroke();
-  fill(255);
+  fill(canvasColor);
   rect(canvasOriginX, canvasOriginY, canvasWidth, canvasHeight);
 }
 
@@ -492,12 +547,13 @@ void draw() {
 }
 
 // Utility functions
-PShape startSpiralStroke() {
+PShape startSpiralStroke(color c) {
   PShape s = createShape();
   s.setStroke(true);
   s.setFill(false);
   s.setStrokeJoin(ROUND);
   s.beginShape();
+  s.stroke(c);
   return s;
 }
 
@@ -520,7 +576,7 @@ public interface CalcBrightness {
 //
 // Function to create spiral shape from loaded image file - Transparency zero work as a mask colour
 //
-PShape createSpiral(CalcBrightness brightnessCallback) {
+PShape createSpiral(CalcBrightness brightnessCallback, color drawColor) {
   if (!isLoaded) {
     return null;
   }
@@ -565,7 +621,7 @@ PShape createSpiral(CalcBrightness brightnessCallback) {
 
       // Add vertices to shape
       if (shapeOn == false) {
-        s = startSpiralStroke();
+        s = startSpiralStroke(drawColor);
         shapeOn = true;
       }
       // Draw lines (from previous (xb, yb) to (xa, ya), then from (xa, ya) to (xb, yb)
@@ -597,7 +653,13 @@ void drawSpiral() {
     return;
   }
   // Use lambda expression for the callback function (Java8 and later)
-  outputSpiral = createSpiral((c) -> map(brightness(c), 0, 255, distance / 2, 0));
+  if (useWhitePen) {
+    // draw with white stroke
+    outputSpiral = createSpiral((c) -> map(brightness(c), 0, 255, 0, distance / 2), penColor);
+  } else {
+    // draw with black stroke
+    outputSpiral = createSpiral((c) -> map(brightness(c), 0, 255, distance / 2, 0), penColor);
+  }
   displaySVG(outputSpiral);
 }
 
