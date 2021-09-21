@@ -26,6 +26,8 @@
 //     remove mask color function
 //     check to see if the image format is supported on open
 //     automatically calculate ampScale
+// 1.5 rename clear display button to view original
+//     fixed the spiral data could be out of the display size range
 //
 // SpiralfromImage is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -117,9 +119,9 @@ void setupGUI() {
     ;
   yy += (h0 + s0);
 
-  // Create a new button with name 'clearDisplay'
-  cp5.addButton("clearDisplayButton")
-    .setLabel("Clear Display")
+  // Create a new button with name 'viewOriginalButton'
+  cp5.addButton("viewOriginalButton")
+    .setLabel("View Original")
     .setBroadcast(false)
     .setPosition(xx, yy)
     .setSize(w0, h0)
@@ -328,8 +330,8 @@ public void generateSpiralButton(int theValue) {
   needToUpdatePreview = true;
 }
 
-// Clear the display of any loaded images
-public void clearDisplayButton(int theValue) {
+// Display loaded images
+public void viewOriginalButton(int theValue) {
   if (!isLoaded) {
     clearDisplay();
     return;
@@ -509,21 +511,27 @@ void endSpiralStroke(PShape s, PShape parent) {
   parent.addChild(s);
 }
 
-//
-// Function to creatve spiral shape from loaded image file - Transparency zero work as a mask colour
-//
-void drawSpiral() {
-  if (!isLoaded) {
-    return;
-  }
+// Callback interface for various brightness converters
+public interface CalcBrightness {
+  // Convert color value to brightness
+  float calc(color c);
+}
 
+//
+// Function to create spiral shape from loaded image file - Transparency zero work as a mask colour
+//
+PShape createSpiral(CalcBrightness brightnessCallback) {
+  if (!isLoaded) {
+    return null;
+  }
+  PShape parent = createShape(GROUP);
   // Calculates the first point
   float delta;
   float degree = density * 2 / (distance / 2);
   float radius = distance / (360 / degree);
   float rad = radians(degree);
 
-  outputSpiral = createShape(GROUP);
+  parent = createShape(GROUP);
   PShape s = createShape();
   boolean shapeOn = false; // Keeps track of a shape is open or closed
   while ((radius + distance / 2) < endRadius) {  // Have we reached the far corner of the image?
@@ -539,7 +547,7 @@ void drawSpiral() {
     if ((a != 0.0)
       && (x > distance / 2) && ((x + distance / 2) < sourceImg.width)
       && (y > distance / 2) && ((y + distance / 2) < sourceImg.height)) {
-      float b = map(brightness(c), 0, 255, distance / 2, 0); // Sampled brightness
+      float b = brightnessCallback.calc(c);
       // Move up according to sampled brightness
       float aradius = radius + b; // Radius with brighness applied up
       float xa =  aradius * cos(rad) + centerPointX;
@@ -565,7 +573,7 @@ void drawSpiral() {
     } else {
       // We are outside of the image or transparency is zero, so close the shape if it is open
       if (shapeOn) {
-        endSpiralStroke(s, outputSpiral);
+        endSpiralStroke(s, parent);
         shapeOn = false;
       }
     }
@@ -578,21 +586,28 @@ void drawSpiral() {
 
   // end of loop
   if (shapeOn) {
-    endSpiralStroke(s, outputSpiral);
+    endSpiralStroke(s, parent);
   }
-
-  displaySVG();
-
-  System.gc();
+  
+  return parent;
 }
 
-void displaySVG() {
+void drawSpiral() {
+  if (!isLoaded) {
+    return;
+  }
+  // Use lambda expression for the callback function (Java8 and later)
+  outputSpiral = createSpiral((c) -> map(brightness(c), 0, 255, distance / 2, 0));
+  displaySVG(outputSpiral);
+}
+
+void displaySVG(PShape shape) {
   clearCanvas();
 
   pushMatrix();
   translate(canvasOriginX, canvasOriginY);
   scale(float(displayImgSize) / float(internalImgSize));
-  shape(outputSpiral);
+  shape(shape);
   popMatrix();
 }
 
@@ -622,7 +637,6 @@ void clearDisplay() {
   if (!isLoaded) {
     feedbackText.setText("Load image to start");
   }
-  System.gc();
 }
 
 //
@@ -644,9 +658,9 @@ float getMaxRadius() {
   //----+----
   // r2 | r3
   float r0 = sqrt(pow(centerPointX, 2) + pow(centerPointY, 2));
-  float r1 = sqrt(pow(sourceImg.width - centerPointX, 2) + pow(centerPointY, 2));
-  float r2 = sqrt(pow(centerPointX, 2) + pow(sourceImg.height - centerPointY, 2));
-  float r3 = sqrt(pow(sourceImg.width - centerPointX, 2) + pow(sourceImg.height - centerPointY, 2));
+  float r1 = sqrt(pow(sourceImg.width - 1 - centerPointX, 2) + pow(centerPointY, 2));
+  float r2 = sqrt(pow(centerPointX, 2) + pow(sourceImg.height - 1 - centerPointY, 2));
+  float r3 = sqrt(pow(sourceImg.width - 1 - centerPointX, 2) + pow(sourceImg.height - 1 - centerPointY, 2));
   return (float)Math.floor(max(max(r0, r1), max(r2, r3)));
 }
 
@@ -654,8 +668,8 @@ float getMinRadius() {
   // Search the nearest edge of the image
   float r0 = centerPointX;
   float r1 = centerPointY;
-  float r2 = sourceImg.height - centerPointY;
-  float r3 = sourceImg.width - centerPointX;
+  float r2 = sourceImg.height - 1 - centerPointY;
+  float r3 = sourceImg.width - 1 - centerPointX;
   return (float)Math.floor(min(min(r0, r1), min(r2, r3)));
 }
 
