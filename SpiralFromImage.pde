@@ -29,6 +29,7 @@
 // 1.5 rename clear display button to view original
 //     fixed the spiral data could be out of the display size range
 //     support drawing in white on a black canvas
+//     draw a guide frame around the original image
 //
 // SpiralfromImage is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -53,6 +54,7 @@ Textarea feedbackText;
 
 final int internalImgSize = 1200;
 final int displayImgSize = 600;
+final float scaleRatio = float(displayImgSize) / float(internalImgSize);
 
 String sourceImgPath = "";                 // Source image absolute location
 boolean isLoaded = false;                  // Whether the source image has been loaded or not
@@ -71,8 +73,13 @@ boolean useWhitePen = false;
 boolean useCircleShape = false;
 boolean usePreview = true;
 
+color penColor = 0;
+color canvasColor = 255;
+color guideFrameColor = color(0x00, 0x33, 0x68);
+
 // internal state variables
 boolean needToUpdatePreview = false;
+boolean needToDrawOriginalImage = false;
 
 final int canvasOriginX = 187;
 final int canvasOriginY = 85;
@@ -89,6 +96,21 @@ void setup() {
   drawBackground();
   outputSpiral = createShape(GROUP);
   setupGUI();
+}
+
+void draw() {
+  if (needToDrawOriginalImage) {
+    needToDrawOriginalImage = false;
+    clearCanvas();
+    drawOriginalImage();
+    drawFrame();
+  }
+  if (needToUpdatePreview) {
+    needToUpdatePreview = false;
+    clearCanvas();
+    drawSpiral();
+    drawFrame();
+  }
 }
 
 void setupGUI() {
@@ -339,8 +361,7 @@ void fileSelected(File selection) {
   if (usePreview) {
     needToUpdatePreview = true;
   } else {
-    clearCanvas();
-    drawImg();
+    needToDrawOriginalImage = true;
   }
 }
 
@@ -357,20 +378,18 @@ public void generateSpiralButton(int theValue) {
 // Display loaded images
 public void viewOriginalButton(int theValue) {
   if (!isLoaded) {
-    clearDisplay();
     return;
   }
-  clearCanvas();
-  drawImg();
+  needToDrawOriginalImage = true;
 }
 
 // Whether to use the white pen or not
 public void useWhitePenSwitch(boolean theValue) {
   useWhitePen = theValue;
+  updatePenColor();
   if (!isLoaded) {
     return;
   }
-  updatePenColor();
   if (usePreview) {
     needToUpdatePreview = true;
   }
@@ -473,8 +492,8 @@ void saveAs(String format) {
   int w = sourceImg.width;
   int h = sourceImg.height;
   if (useCircleShape) {
-    w = int(endRadius * 2);
-    h = int(endRadius * 2);
+    w = int(endRadius * 2) - 1;
+    h = int(endRadius * 2) - 1;
   }
 
   // Draw it!
@@ -509,9 +528,6 @@ public void saveAsPDFButton(int theValue) {
   saveAs(PDF);
 }
 
-color penColor = 0;
-color canvasColor = 255;
-
 // Update Pen Color
 void updatePenColor() {
   if (useWhitePen) {
@@ -523,7 +539,7 @@ void updatePenColor() {
   }
 }
 
-// Redraw background elements to remove previous loaded PImage
+// Redraw background elements
 void drawBackground() {
   noStroke();
   background(235);
@@ -531,19 +547,23 @@ void drawBackground() {
   rect(25, 25, 100 + guiBorder * 2, 25 + displayImgSize + 25 * 2);
   fill(245);
   rect(175, 25, displayImgSize + guiBorder * 2, 25 + displayImgSize + 25 * 2);
+  clearCanvas();
 }
 
 void clearCanvas() {
   noStroke();
-  fill(canvasColor);
+  fill(220);
   rect(canvasOriginX, canvasOriginY, canvasWidth, canvasHeight);
 }
 
-void draw() {
-  if (needToUpdatePreview) {
-    needToUpdatePreview = false;
-    drawSpiral();
-  }
+void drawFrame() {
+    if (!isLoaded) {
+      return;
+    }
+    // Draw guide frame around the original image
+    noFill();
+    stroke(guideFrameColor);
+    rect(canvasOriginX, canvasOriginY, displayImg.width - 1, displayImg.height - 1); // -1 needed
 }
 
 // Utility functions
@@ -644,7 +664,7 @@ PShape createSpiral(CalcBrightness brightnessCallback, color drawColor) {
   if (shapeOn) {
     endSpiralStroke(s, parent);
   }
-  
+
   return parent;
 }
 
@@ -664,12 +684,24 @@ void drawSpiral() {
 }
 
 void displaySVG(PShape shape) {
-  clearCanvas();
-
   pushMatrix();
+
+  // Scaling
   translate(canvasOriginX, canvasOriginY);
-  scale(float(displayImgSize) / float(internalImgSize));
+  scale(scaleRatio);
+
+  // Draw background shape
+  noStroke();
+  fill(canvasColor);
+  if (useCircleShape) {
+    circle(centerPointX, centerPointY, int(endRadius * 2) - 1);
+  } else {
+    rect(0, 0, sourceImg.width, sourceImg.height);
+  }
+
+  // Draw spiral shape
   shape(shape);
+
   popMatrix();
 }
 
@@ -689,16 +721,8 @@ void resizedisplayImg() {
   }
 }
 
-void drawImg() {
-  set(canvasOriginX, canvasOriginY, displayImg);
-}
-
-void clearDisplay() {
-  background(235);
-  drawBackground();
-  if (!isLoaded) {
-    feedbackText.setText("Load image to start");
-  }
+void drawOriginalImage() {
+  image(displayImg, canvasOriginX, canvasOriginY);
 }
 
 //
@@ -754,8 +778,8 @@ void mousePressed() {
   if (mouseButton == LEFT) {
     if (inCanvas()) {
       mouseLocked = true;
-      centerPointX = int(float(mouseX - canvasOriginX) * float(internalImgSize) / float(displayImgSize));
-      centerPointY = int(float(mouseY - canvasOriginY) * float(internalImgSize) / float(displayImgSize));
+      centerPointX = int(float(mouseX - canvasOriginX) / scaleRatio);
+      centerPointY = int(float(mouseY - canvasOriginY) / scaleRatio);
       // update GUI parts
       cp5.getController("cernterPointXNumberbox").setValue(centerPointX);
       cp5.getController("cernterPointYNumberbox").setValue(centerPointY);
