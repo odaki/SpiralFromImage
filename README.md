@@ -20,3 +20,11 @@ v1.4
 - remove mask color function
 - check to see if the image format is supported on open
 - automatically calculate ampScale
+
+v1.5
+
+- fixed the spiral data could be out of the display size range
+- support drawing in white on a black canvas
+- draw a guide frame around the original image
+- rename clear display button to view original
+- draw a checkered pattern as a canvas to make the transparent image easier to see

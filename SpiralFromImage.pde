@@ -30,6 +30,7 @@
 //     fixed the spiral data could be out of the display size range
 //     support drawing in white on a black canvas
 //     draw a guide frame around the original image
+//     draw a checkered pattern as a canvas to make the transparent image easier to see
 //
 // SpiralfromImage is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -549,9 +550,20 @@ void drawBackground() {
 }
 
 void clearCanvas() {
+  // Draw a checkered pattern
+  int c[] = {color(0xe4, 0xe4, 0xf0), color(0xec, 0xec, 0xf0)};
+  int gridWidth = 10;
+  int base = 0;
   noStroke();
-  fill(220);
-  rect(canvasOriginX, canvasOriginY, canvasWidth, canvasHeight);
+  for (int y = 0; y < canvasHeight; y += gridWidth) {
+    int n = base;
+    for (int x = 0; x < canvasWidth; x += gridWidth) {
+      fill(c[n]);
+      rect(canvasOriginX + x, canvasOriginY + y, gridWidth, gridWidth);
+      n ^= 1;
+    }
+    base ^= 1;
+  }
 }
 
 void drawFrame() {
