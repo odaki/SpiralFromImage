@@ -368,8 +368,6 @@ void fileSelected(File selection) {
 // Button Event - generateSpiral: Convert image file to SVG
 public void generateSpiralButton(int theValue) {
   if (!isLoaded) {
-    feedbackText.setText("no image file is currently open!");
-    feedbackText.update();
     return;
   }
   needToUpdatePreview = true;
