@@ -551,10 +551,15 @@ void drawBackground() {
 
 void clearCanvas() {
   // Draw a checkered pattern
-  int c[] = {color(0xe4, 0xe4, 0xf0), color(0xec, 0xec, 0xf0)};
-  int gridWidth = 10;
-  int base = 0;
+  final int gridWidth = 10;
+  int c[] = {
+      // checker colors
+      color(0xe4, 0xe4, 0xf0),  // dark
+      color(0xec, 0xec, 0xf0)   // light
+    };
+
   noStroke();
+  int base = 0;
   for (int y = 0; y < canvasHeight; y += gridWidth) {
     int n = base;
     for (int x = 0; x < canvasWidth; x += gridWidth) {
