@@ -28,3 +28,7 @@ v1.5
 - draw a guide frame around the original image
 - rename clear display button to view original
 - draw a checkered pattern as a canvas to make the transparent image easier to see
+
+v1.6
+
+- added color mode
