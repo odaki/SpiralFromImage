@@ -400,7 +400,7 @@ public void penColorRadiobutton(int theValue) {
   }
   penColorMode = theValue;
   updateCanvasColor();
-  if (usePreview) {
+  if (isLoaded && usePreview) {
     needToUpdatePreview = true;
   }
 }
@@ -408,7 +408,7 @@ public void penColorRadiobutton(int theValue) {
 // Recieve wave distance value from slider
 public void distanceSlider(int theValue) {
   distance = theValue;
-  if (usePreview) {
+  if (isLoaded && usePreview) {
     needToUpdatePreview = true;
   }
 }
@@ -416,7 +416,7 @@ public void distanceSlider(int theValue) {
 // Recieve density value from slider
 public void densitySlider(int theValue) {
   density = theValue;
-  if (usePreview) {
+  if (isLoaded && usePreview) {
     needToUpdatePreview = true;
   }
 }
@@ -425,7 +425,7 @@ public void densitySlider(int theValue) {
 public void cernterPointXNumberbox(int theValue) {
   centerPointX = theValue;
   updateEndRadius();
-  if (usePreview) {
+  if (isLoaded && usePreview) {
     needToUpdatePreview = true;
   }
 }
@@ -434,7 +434,7 @@ public void cernterPointXNumberbox(int theValue) {
 public void cernterPointYNumberbox(int theValue) {
   centerPointY = theValue;
   updateEndRadius();
-  if (usePreview) {
+  if (isLoaded && usePreview) {
     needToUpdatePreview = true;
   }
 }
