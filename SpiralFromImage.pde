@@ -32,6 +32,7 @@
 //     draw a guide frame around the original image
 //     draw a checkered pattern as a canvas to make the transparent image easier to see
 // 1.6 added color mode
+//     support for inkscape layered SVG
 //
 // SpiralfromImage is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -548,7 +549,8 @@ void saveAs(String format) {
 
 // Save As SVG
 public void saveAsSVGButton(int theValue) {
-  saveAs(SVG);
+  //saveAs(SVG);
+  saveAsInkscapeSVG();
 }
 
 // Save As PDF
@@ -611,9 +613,7 @@ void drawFrame() {
 // Utility functions
 PShape startSpiralStroke(color c) {
   PShape s = createShape();
-  s.setStroke(true);
   s.setFill(false);
-  s.setStrokeJoin(ROUND);
   s.beginShape();
   s.stroke(c);
   return s;
@@ -642,15 +642,18 @@ PShape createSpiral(CalcBrightness brightnessCallback, color drawColor) {
   if (!isLoaded) {
     return null;
   }
-  PShape parent = createShape(GROUP);
   // Calculates the first point
   float delta;
   float degree = density * 2 / (distance / 2);
   float radius = distance / (360 / degree);
   float rad = radians(degree);
 
-  parent = createShape(GROUP);
-  PShape s = createShape();
+  PShape parent = createShape(GROUP);
+  parent.setFill(false);
+  parent.setStroke(true);
+  parent.setStrokeJoin(ROUND);
+
+  PShape s = null;
   boolean shapeOn = false; // Keeps track of a shape is open or closed
   while ((radius + distance / 2) < endRadius) {  // Have we reached the far corner of the image?
     float x = radius * cos(rad) + centerPointX;
@@ -874,4 +877,185 @@ void mouseReleased() {
   if (mouseButton == LEFT) {
     mouseLocked = false;
   }
+}
+
+void writePolygonBody(PrintWriter output, PShape s, String style, int translateX, int translateY) {
+  int vertexcodecount = s.getVertexCodeCount();
+  int [] vertexcodes = s.getVertexCodes();
+  PVector vec = s.getVertex(0);
+  output.printf("<path style=\"" + style + "\" d=\"M%.4f %.4f", vec.x + translateX, vec.y + translateY);
+  for (int i = 1; i < vertexcodecount; i++) {
+    int code = vertexcodes[i];
+    if (code == VERTEX) {
+      vec = s.getVertex(i);
+      output.printf(" L%.4f %.4f", vec.x + translateX, vec.y + translateY);
+    }
+  }
+  output.println("\" />");
+}
+
+void writeGroupBody(PrintWriter output, PShape parent, String style, int translateX, int translateY) {
+  output.println("<g>");
+  PShape [] children = parent.getChildren();
+  int childCount = parent.getChildCount();
+  for (int i = 0; i < childCount; i++) {
+    PShape s = children[i];
+    int k = s.getKind();
+    if (k == GROUP) {
+      writeGroupBody(output, s, style, translateX, translateY);
+    } else if (k == POLYGON) {
+      writePolygonBody(output, s, style, translateX, translateY);
+    }
+  }
+  output.println("</g>");
+}
+
+void writeShapeBody(PrintWriter output, PShape s, String style, int translateX, int translateY) {
+  int k = s.getKind();
+  if (k == GROUP) {
+    writeGroupBody(output, s, style, translateX, translateY);
+  } else if (k == POLYGON) {
+    writePolygonBody(output, s, style, translateX, translateY);
+  }
+}
+
+void writeSVGHeader(PrintWriter output, int w, int h) {
+  output.println(
+         "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>"
+  +"\n"+ "<svg"
+  +"\n"+ "    width=\"" + w + "\""
+  +"\n"+ "    height=\"" + h + "\""
+  +"\n"+ "    version=\"1.1\""
+  +"\n"+ "    xmlns:inkscape=\"http://www.inkscape.org/namespaces/inkscape\""
+  +"\n"+ "    xmlns:sodipodi=\"http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd\""
+  +"\n"+ "    xmlns=\"http://www.w3.org/2000/svg\""
+  +"\n"+ "    xmlns:svg=\"http://www.w3.org/2000/svg\">"
+  );
+}
+
+void writeSVGHooter(PrintWriter output) {
+  output.println("</svg>");
+}
+
+void writeLayerHeader(PrintWriter output, String name, String style) {
+  output.println(
+         "  <g"
+  +"\n"+ "     inkscape:groupmode=\"layer\""
+  +"\n"+ "     inkscape:label=\"" + name + "\""
+  +"\n"+ "     style=\"" + style + "\""
+  +"\n"+ "     >"
+  );
+}
+
+void writeLayerHooter(PrintWriter output) {
+  output.println("  </g>");
+}
+
+void writeRectBody(PrintWriter output, int w, int h, String style) {
+  output.println(
+         "      <rect"
+  +"\n"+ "       x=\"0\""
+  +"\n"+ "       width=\"" + w + "\""
+  +"\n"+ "       height=\"" + h + "\""
+  +"\n"+ "       y=\"0\""
+  +"\n"+ "       style=\"" + style + "\""
+  +"\n"+ "        />"
+  );
+}
+
+void writeCircleBody(PrintWriter output, int r, int cx, int cy, String style) {
+  output.println(
+         "      <circle"
+  +"\n"+ "       r=\"" + r + "\""
+  +"\n"+ "       style=\"" + style + "\""
+  +"\n"+ "       cx=\"" + cx + "\""
+  +"\n"+ "       cy=\"" + cx + "\""
+  +"\n"+ "        />"
+  );
+}
+
+void saveAsInkscapeSVG() {
+  if (!isLoaded) {
+    feedbackText.setText("no image file is currently open!");
+    feedbackText.update();
+    return;
+  }
+
+  // Construct filename
+  String fileName = createOutputFilename(sourceImgPath, "svg");
+
+  needToUpdatePreview = false;
+
+  // Update spiral by current parameter
+  updateOutputSpiral();
+
+  // Prepare
+  int r = 1;
+  int w = sourceImg.width;
+  int h = sourceImg.height;
+  int tx = 0;
+  int ty = 0;
+  if (useCircleShape) {
+    r = (int)Math.ceil(endRadius);
+    w = r * 2;
+    h = r * 2;
+    tx = r - centerPointX;
+    ty = r - centerPointY;
+  }
+
+  // Color
+  String strokeColor = null;
+  String fillColor = null;
+  if (penColorMode == PENCOLORMODE_WHITE) {
+    strokeColor = "#ffffff";
+    fillColor = "#000000";
+  } else {
+    strokeColor = "#000000";
+    fillColor = "#ffffff";
+  }
+
+  // Start writing SVG
+  PrintWriter output = createWriter(fileName);
+  writeSVGHeader(output, w, h);
+
+  // Write a background shape
+  writeLayerHeader(output, "GUIDE", "mix-blend-mode:normal");
+  if (useCircleShape) {
+    writeCircleBody(output, r, r, r, "fill:" + fillColor + ";stroke:none");
+  } else {
+    writeRectBody(output, w, h, "fill:" + fillColor + ";stroke:none");
+  }
+  writeLayerHooter(output);
+
+  // Write spiral
+  if (penColorMode == PENCOLORMODE_COLORS) {
+    writeLayerHeader(output, "C_SPIRAL", "mix-blend-mode:multiply");
+    writeShapeBody(output, outputSpiralC, "fill:none;stroke:#00ffff;stroke-linejoin:round", tx, ty);
+    writeLayerHooter(output);
+
+    writeLayerHeader(output, "M_SPIRAL", "mix-blend-mode:multiply");
+    writeShapeBody(output, outputSpiralM, "fill:none;stroke:#ff00ff;stroke-linejoin:round", tx, ty);
+    writeLayerHooter(output);
+
+    writeLayerHeader(output, "Y_SPIRAL", "mix-blend-mode:multiply");
+    writeShapeBody(output, outputSpiralY, "fill:none;stroke:#ffff00;stroke-linejoin:round", tx, ty);
+    writeLayerHooter(output);
+  } else {
+    writeLayerHeader(output, "SPIRAL", "mix-blend-mode:normal");
+    writeShapeBody(output, outputSpiral, "fill:none;stroke:" + strokeColor + ";stroke-linejoin:round", tx, ty);
+    writeLayerHooter(output);
+  }
+
+  // End of SVG
+  writeSVGHooter(output);
+
+  // Close file
+  output.flush(); 						// Writes the remaining data to the file
+  output.close();
+
+  // Done.
+  feedbackText.setText("saved as " + sketchPath(fileName));
+  feedbackText.update();
+
+  needToUpdatePreview = true;
 }

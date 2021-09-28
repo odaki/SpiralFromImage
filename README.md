@@ -32,3 +32,4 @@ v1.5
 v1.6
 
 - added color mode
+- support for inkscape layered SVG
