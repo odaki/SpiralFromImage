@@ -653,11 +653,11 @@ PShape createSpiral(CalcBrightness brightnessCallback, color drawColor) {
   parent.setStroke(true);
   parent.setStrokeJoin(ROUND);
 
-  float limit = (float)Math.ceil(distance / 2);
+  float halfDistance = (float)Math.ceil(distance / 2);
 
   PShape s = null;
   boolean shapeOn = false; // Keeps track of a shape is open or closed
-  while ((radius + limit) < endRadius) {  // Have we reached the far corner of the image?
+  while ((radius + halfDistance) < endRadius) {  // Have we reached the far corner of the image?
     float x = radius * cos(rad) + centerPointX;
     float y = -radius * sin(rad) + centerPointY;
 
@@ -668,8 +668,8 @@ PShape createSpiral(CalcBrightness brightnessCallback, color drawColor) {
     // Are we within the the image?
     // If so check if the shape is open. If not, open it
     if ((a != 0.0)
-      && (x > limit) && ((x + limit) < sourceImg.width)
-      && (y > limit) && ((y + limit) < sourceImg.height)) {
+      && (x > halfDistance) && ((x + halfDistance) < sourceImg.width)
+      && (y > halfDistance) && ((y + halfDistance) < sourceImg.height)) {
       float b = brightnessCallback.calc(c);
       // Move up according to sampled brightness
       float aradius = radius + b; // Radius with brighness applied up
