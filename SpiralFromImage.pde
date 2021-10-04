@@ -31,6 +31,8 @@
 //     support drawing in white on a black canvas
 //     draw a guide frame around the original image
 //     draw a checkered pattern as a canvas to make the transparent image easier to see
+// 1.6 added color mode
+//     support for inkscape layered SVG
 //
 // SpiralfromImage is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -43,19 +45,20 @@
 // jan@krummrey.de
 // http://jan.krummrey.de
 
-import controlP5.*;                        // CP5 for gui
 import java.io.File;                       // Required for file path operations
 
 import processing.svg.*;
 import processing.pdf.*;
 
+import controlP5.*;                        // CP5 for gui
+
 ControlP5 cp5;
 
 Textarea feedbackText;
 
-final int internalImgSize = 1200;
-final int displayImgSize = 600;
-final float scaleRatio = float(displayImgSize) / float(internalImgSize);
+static final int INTERNAL_IMAGE_SIZE = 1200;
+static final int DISPLAY_IMAGE_SIZE = 600;
+static final float SCALE_RATIO = float(DISPLAY_IMAGE_SIZE) / float(INTERNAL_IMAGE_SIZE);
 
 String sourceImgPath = "";                 // Source image absolute location
 boolean isLoaded = false;                  // Whether the source image has been loaded or not
@@ -65,16 +68,24 @@ PImage displayImg;                         // Image to use as display
 float distance = 5;                        // Distance between rings
 float density = 36;                        // Density
 
-int centerPointX = internalImgSize / 2;    // Center point of spiral
-int centerPointY = internalImgSize / 2;    // Center point of spiral
-float endRadius = internalImgSize / 2;     // Largest value the spiral needs to cover the image
-PShape outputSpiral;                       // Spriral shape to draw
+int centerPointX = INTERNAL_IMAGE_SIZE / 2;    // Center point of spiral
+int centerPointY = INTERNAL_IMAGE_SIZE / 2;    // Center point of spiral
+float endRadius = INTERNAL_IMAGE_SIZE / 2;     // Largest value the spiral needs to cover the image
 
-boolean useWhitePen = false;
+PShape outputSpiral = null;                // Spriral shape to draw
+
+PShape outputSpiralC = null;
+PShape outputSpiralM = null;
+PShape outputSpiralY = null;
+
+static final int PENCOLORMODE_BLACK = 0;
+static final int PENCOLORMODE_WHITE = 1;
+static final int PENCOLORMODE_COLORS = 2;
+int penColorMode = PENCOLORMODE_BLACK;
+
 boolean useCircleShape = false;
 boolean usePreview = true;
 
-color penColor = 0;
 color canvasColor = 255;
 color guideFrameColor = color(0x00, 0x33, 0x68);
 
@@ -82,15 +93,15 @@ color guideFrameColor = color(0x00, 0x33, 0x68);
 boolean needToUpdatePreview = false;
 boolean needToDrawOriginalImage = false;
 
-final int canvasOriginX = 187;
-final int canvasOriginY = 85;
+static final int CANVAS_ORIGIN_X = 187;
+static final int CANVAS_ORIGIN_Y = 85;
 final int guiBorder = 12;
 
-int canvasWidth = displayImgSize;
-int canvasHeight = displayImgSize;
+int canvasWidth = DISPLAY_IMAGE_SIZE;
+int canvasHeight = DISPLAY_IMAGE_SIZE;
 
 void settings() {
-  size(174 + displayImgSize + 25 * 2, 75 + displayImgSize + 25 * 2);
+  size(174 + DISPLAY_IMAGE_SIZE + 25 * 2, 75 + DISPLAY_IMAGE_SIZE + 25 * 2);
 }
 
 void setup() {
@@ -108,6 +119,7 @@ void draw() {
   }
   if (needToUpdatePreview) {
     needToUpdatePreview = false;
+    updateOutputSpiral();
     clearCanvas();
     drawSpiral();
     drawFrame();
@@ -161,20 +173,21 @@ void setupGUI() {
 
   yy += t0; // some space for grouping
 
-  // Create a toggle to use white pen or not: default is false
-  cp5.addToggle("useWhitePenSwitch")
-    .setLabel("Use white pen")
-    .setBroadcast(false)
+  // Create a radio button to select color mode: default is black pen
+  cp5.addRadioButton("penColorRadiobutton")
+    .setLabel("Pen color")
     .setPosition(xx, yy)
+    .setColorLabel(color(127))
     .setSize(h0, h0)
-    .setValue(useWhitePen)
-    .setBroadcast(true)
+    .setItemsPerRow(1)
+    .setLabelPadding(10,10)
+    .addItem("Black Pen", PENCOLORMODE_BLACK)
+    .addItem("White Pen", PENCOLORMODE_WHITE)
+    .addItem("Color Pens", PENCOLORMODE_COLORS)
+    .activate(penColorMode)
+    .setNoneSelectedAllowed(false) // always have 1 item selected
     ;
-  yy += (h0 + s0);
-  // Reposition the Label for controller 'toggle'
-  cp5.getController("useWhitePenSwitch").getCaptionLabel().align(ControlP5.RIGHT_OUTSIDE, ControlP5.CENTER).setPaddingX(10).setColor(color(128));
-
-  yy += t0; // some space for grouping
+  yy += (h0 + s0) * 3;
 
   // Create a new slider to set distance between rings: default value is 5
   yy += t0; // need spece for the label
@@ -215,7 +228,7 @@ void setupGUI() {
   cp5.addNumberbox("cernterPointXNumberbox")
     .setLabel("Center X")
     .setBroadcast(false)
-    .setRange(0, internalImgSize - 1)
+    .setRange(0, INTERNAL_IMAGE_SIZE - 1)
     .setPosition(xx, yy)
     .setSize(w0 / 2, h0)
     .setScrollSensitivity(1.1)
@@ -231,7 +244,7 @@ void setupGUI() {
   cp5.addNumberbox("cernterPointYNumberbox")
     .setLabel("Center Y")
     .setBroadcast(false)
-    .setRange(0, internalImgSize - 1)
+    .setRange(0, INTERNAL_IMAGE_SIZE - 1)
     .setPosition(xx, yy)
     .setSize(w0 / 2, h0)
     .setScrollSensitivity(1.1)
@@ -382,14 +395,13 @@ public void viewOriginalButton(int theValue) {
   needToDrawOriginalImage = true;
 }
 
-// Whether to use the white pen or not
-public void useWhitePenSwitch(boolean theValue) {
-  useWhitePen = theValue;
-  updatePenColor();
-  if (!isLoaded) {
+public void penColorRadiobutton(int theValue) {
+  if (theValue == penColorMode) {
     return;
   }
-  if (usePreview) {
+  penColorMode = theValue;
+  updateCanvasColor();
+  if (isLoaded && usePreview) {
     needToUpdatePreview = true;
   }
 }
@@ -397,7 +409,7 @@ public void useWhitePenSwitch(boolean theValue) {
 // Recieve wave distance value from slider
 public void distanceSlider(int theValue) {
   distance = theValue;
-  if (usePreview) {
+  if (isLoaded && usePreview) {
     needToUpdatePreview = true;
   }
 }
@@ -405,7 +417,7 @@ public void distanceSlider(int theValue) {
 // Recieve density value from slider
 public void densitySlider(int theValue) {
   density = theValue;
-  if (usePreview) {
+  if (isLoaded && usePreview) {
     needToUpdatePreview = true;
   }
 }
@@ -414,7 +426,7 @@ public void densitySlider(int theValue) {
 public void cernterPointXNumberbox(int theValue) {
   centerPointX = theValue;
   updateEndRadius();
-  if (usePreview) {
+  if (isLoaded && usePreview) {
     needToUpdatePreview = true;
   }
 }
@@ -423,7 +435,7 @@ public void cernterPointXNumberbox(int theValue) {
 public void cernterPointYNumberbox(int theValue) {
   centerPointY = theValue;
   updateEndRadius();
-  if (usePreview) {
+  if (isLoaded && usePreview) {
     needToUpdatePreview = true;
   }
 }
@@ -485,7 +497,7 @@ void saveAs(String format) {
   needToUpdatePreview = false;
 
   // Update spiral by current parameter
-  drawSpiral();
+  updateOutputSpiral();
 
   // Prepare
   int w = sourceImg.width;
@@ -506,7 +518,25 @@ void saveAs(String format) {
   } else {
     pg.rect(0, 0, w, h);
   }
-  pg.shape(outputSpiral);
+  if (penColorMode == PENCOLORMODE_COLORS) {
+    if (format.equals(PDF)) {
+      // PDFwriter does not support blendMode(MULTIPLY).
+      // write the split image to the individual pages.
+      pg.shape(outputSpiralC);
+      ((PGraphicsPDF)pg).nextPage();
+      pg.shape(outputSpiralM);
+      ((PGraphicsPDF)pg).nextPage();
+      pg.shape(outputSpiralY);
+    } else {
+      pg.blendMode(MULTIPLY); // It doesn't work with SVG, but I'll give it a try.
+      pg.shape(outputSpiralC);
+      pg.shape(outputSpiralM);
+      pg.shape(outputSpiralY);
+      pg.blendMode(BLEND);
+    }
+  } else {
+    pg.shape(outputSpiral);
+  }
   pg.dispose();
   pg.endDraw();
 
@@ -519,7 +549,8 @@ void saveAs(String format) {
 
 // Save As SVG
 public void saveAsSVGButton(int theValue) {
-  saveAs(SVG);
+  //saveAs(SVG);
+  saveAsInkscapeSVG();
 }
 
 // Save As PDF
@@ -527,13 +558,11 @@ public void saveAsPDFButton(int theValue) {
   saveAs(PDF);
 }
 
-// Update Pen Color
-void updatePenColor() {
-  if (useWhitePen) {
-    penColor = color(255);
+// Update Canvas Color
+void updateCanvasColor() {
+  if (penColorMode == PENCOLORMODE_WHITE) {
     canvasColor = color(0);
   } else {
-    penColor = color(0);
     canvasColor = color(255);
   }
 }
@@ -543,23 +572,28 @@ void drawBackground() {
   noStroke();
   background(235);
   fill(245);
-  rect(25, 25, 100 + guiBorder * 2, 25 + displayImgSize + 25 * 2);
+  rect(25, 25, 100 + guiBorder * 2, 25 + DISPLAY_IMAGE_SIZE + 25 * 2);
   fill(245);
-  rect(175, 25, displayImgSize + guiBorder * 2, 25 + displayImgSize + 25 * 2);
+  rect(175, 25, DISPLAY_IMAGE_SIZE + guiBorder * 2, 25 + DISPLAY_IMAGE_SIZE + 25 * 2);
   clearCanvas();
 }
 
 void clearCanvas() {
   // Draw a checkered pattern
-  int c[] = {color(0xe4, 0xe4, 0xf0), color(0xec, 0xec, 0xf0)};
-  int gridWidth = 10;
-  int base = 0;
+  final int gridWidth = 10;
+  int c[] = {
+      // checker colors
+      color(0xe4, 0xe4, 0xf0),  // dark
+      color(0xec, 0xec, 0xf0)   // light
+    };
+
   noStroke();
+  int base = 0;
   for (int y = 0; y < canvasHeight; y += gridWidth) {
     int n = base;
     for (int x = 0; x < canvasWidth; x += gridWidth) {
       fill(c[n]);
-      rect(canvasOriginX + x, canvasOriginY + y, gridWidth, gridWidth);
+      rect(CANVAS_ORIGIN_X + x, CANVAS_ORIGIN_Y + y, gridWidth, gridWidth);
       n ^= 1;
     }
     base ^= 1;
@@ -573,15 +607,13 @@ void drawFrame() {
     // Draw guide frame around the original image
     noFill();
     stroke(guideFrameColor);
-    rect(canvasOriginX, canvasOriginY, displayImg.width - 1, displayImg.height - 1); // -1 needed
+    rect(CANVAS_ORIGIN_X, CANVAS_ORIGIN_Y, displayImg.width - 1, displayImg.height - 1); // -1 needed
 }
 
 // Utility functions
 PShape startSpiralStroke(color c) {
   PShape s = createShape();
-  s.setStroke(true);
   s.setFill(false);
-  s.setStrokeJoin(ROUND);
   s.beginShape();
   s.stroke(c);
   return s;
@@ -610,17 +642,22 @@ PShape createSpiral(CalcBrightness brightnessCallback, color drawColor) {
   if (!isLoaded) {
     return null;
   }
-  PShape parent = createShape(GROUP);
   // Calculates the first point
   float delta;
   float degree = density * 2 / (distance / 2);
   float radius = distance / (360 / degree);
   float rad = radians(degree);
 
-  parent = createShape(GROUP);
-  PShape s = createShape();
+  PShape parent = createShape(GROUP);
+  parent.setFill(false);
+  parent.setStroke(true);
+  parent.setStrokeJoin(ROUND);
+
+  float limit = (float)Math.ceil(distance / 2);
+
+  PShape s = null;
   boolean shapeOn = false; // Keeps track of a shape is open or closed
-  while ((radius + distance / 2) < endRadius) {  // Have we reached the far corner of the image?
+  while ((radius + limit) < endRadius) {  // Have we reached the far corner of the image?
     float x = radius * cos(rad) + centerPointX;
     float y = -radius * sin(rad) + centerPointY;
 
@@ -631,8 +668,8 @@ PShape createSpiral(CalcBrightness brightnessCallback, color drawColor) {
     // Are we within the the image?
     // If so check if the shape is open. If not, open it
     if ((a != 0.0)
-      && (x > distance / 2) && ((x + distance / 2) < sourceImg.width)
-      && (y > distance / 2) && ((y + distance / 2) < sourceImg.height)) {
+      && (x > limit) && ((x + limit) < sourceImg.width)
+      && (y > limit) && ((y + limit) < sourceImg.height)) {
       float b = brightnessCallback.calc(c);
       // Move up according to sampled brightness
       float aradius = radius + b; // Radius with brighness applied up
@@ -678,27 +715,50 @@ PShape createSpiral(CalcBrightness brightnessCallback, color drawColor) {
   return parent;
 }
 
+void updateOutputSpiral() {
+  if (!isLoaded) {
+    return;
+  }
+
+  if (penColorMode == PENCOLORMODE_BLACK) {
+    // draw with black stroke (it is managed by public variable)
+    outputSpiral = createSpiral((c) -> map(brightness(c), 0, 255, distance / 2, 0), color(0));
+  } else if (penColorMode == PENCOLORMODE_WHITE) {
+    // draw with white stroke (it is managed by public variable)
+    outputSpiral = createSpiral((c) -> map(brightness(c), 0, 255, 0, distance / 2), color(255));
+  } else if (penColorMode == PENCOLORMODE_COLORS) {
+    // draw with CMY strokes (these are managed by public variables)
+    outputSpiralC = createSpiral((c) -> map(red(c), 0, 255, distance / 2, 0), color(0,255,255)); // no red
+    outputSpiralM = createSpiral((c) -> map(green(c), 0, 255, distance / 2, 0), color(255,0,255)); // no green
+    outputSpiralY = createSpiral((c) -> map(blue(c), 0, 255, distance / 2, 0), color(255,255,0)); // no blue
+
+    PShape parent = createShape(GROUP);
+    parent.addChild(outputSpiralC);
+    parent.addChild(outputSpiralM);
+    parent.addChild(outputSpiralY);
+
+    // replace
+    outputSpiral = parent;
+  } else {
+    ; // invalid mode
+  }
+}
+
 void drawSpiral() {
   if (!isLoaded) {
     return;
   }
-  // Use lambda expression for the callback function (Java8 and later)
-  if (useWhitePen) {
-    // draw with white stroke
-    outputSpiral = createSpiral((c) -> map(brightness(c), 0, 255, 0, distance / 2), penColor);
-  } else {
-    // draw with black stroke
-    outputSpiral = createSpiral((c) -> map(brightness(c), 0, 255, distance / 2, 0), penColor);
-  }
-  displaySVG(outputSpiral);
-}
 
-void displaySVG(PShape shape) {
+  if (penColorMode != PENCOLORMODE_BLACK && penColorMode != PENCOLORMODE_WHITE && penColorMode != PENCOLORMODE_COLORS) {
+    return;
+  }
+
+  // Draw
   pushMatrix();
 
   // Scaling
-  translate(canvasOriginX, canvasOriginY);
-  scale(scaleRatio);
+  translate(CANVAS_ORIGIN_X, CANVAS_ORIGIN_Y);
+  scale(SCALE_RATIO);
 
   // Draw background shape
   noStroke();
@@ -710,16 +770,26 @@ void displaySVG(PShape shape) {
   }
 
   // Draw spiral shape
-  shape(shape);
+  if (penColorMode == PENCOLORMODE_COLORS) {
+    blendMode(MULTIPLY);
+    shape(outputSpiralC);
+    shape(outputSpiralM);
+    shape(outputSpiralY);
+    blendMode(BLEND);
+  } else if (penColorMode == PENCOLORMODE_BLACK || penColorMode == PENCOLORMODE_WHITE) {
+    shape(outputSpiral);
+  } else {
+    ; // invalid mode
+  }
 
   popMatrix();
 }
 
 void resizeImg() {
   if (sourceImg.width > sourceImg.height) {
-    sourceImg.resize(internalImgSize, 0);
+    sourceImg.resize(INTERNAL_IMAGE_SIZE, 0);
   } else {
-    sourceImg.resize(0, internalImgSize);
+    sourceImg.resize(0, INTERNAL_IMAGE_SIZE);
   }
 }
 
@@ -732,7 +802,7 @@ void resizedisplayImg() {
 }
 
 void drawOriginalImage() {
-  image(displayImg, canvasOriginX, canvasOriginY);
+  image(displayImg, CANVAS_ORIGIN_X, CANVAS_ORIGIN_Y);
 }
 
 //
@@ -774,8 +844,8 @@ float getMinRadius() {
 //
 
 boolean inCanvas() {
-  return(mouseX >= canvasOriginX && mouseX < (canvasOriginX + displayImg.width) &&
-    mouseY >= canvasOriginY && mouseY < (canvasOriginY + displayImg.height));
+  return(mouseX >= CANVAS_ORIGIN_X && mouseX < (CANVAS_ORIGIN_X + displayImg.width) &&
+    mouseY >= CANVAS_ORIGIN_Y && mouseY < (CANVAS_ORIGIN_Y + displayImg.height));
 }
 
 boolean mouseLocked = false;
@@ -788,8 +858,8 @@ void mousePressed() {
   if (mouseButton == LEFT) {
     if (inCanvas()) {
       mouseLocked = true;
-      centerPointX = int(float(mouseX - canvasOriginX) / scaleRatio);
-      centerPointY = int(float(mouseY - canvasOriginY) / scaleRatio);
+      centerPointX = int(float(mouseX - CANVAS_ORIGIN_X) / SCALE_RATIO);
+      centerPointY = int(float(mouseY - CANVAS_ORIGIN_Y) / SCALE_RATIO);
       // update GUI parts
       cp5.getController("cernterPointXNumberbox").setValue(centerPointX);
       cp5.getController("cernterPointYNumberbox").setValue(centerPointY);
@@ -809,4 +879,185 @@ void mouseReleased() {
   if (mouseButton == LEFT) {
     mouseLocked = false;
   }
+}
+
+void writePolygonBody(PrintWriter output, PShape s, String style, int translateX, int translateY) {
+  int vertexcodecount = s.getVertexCodeCount();
+  int [] vertexcodes = s.getVertexCodes();
+  PVector vec = s.getVertex(0);
+  output.printf("<path style=\"" + style + "\" d=\"M%.4f %.4f", vec.x + translateX, vec.y + translateY);
+  for (int i = 1; i < vertexcodecount; i++) {
+    int code = vertexcodes[i];
+    if (code == VERTEX) {
+      vec = s.getVertex(i);
+      output.printf(" L%.4f %.4f", vec.x + translateX, vec.y + translateY);
+    }
+  }
+  output.println("\" />");
+}
+
+void writeGroupBody(PrintWriter output, PShape parent, String style, int translateX, int translateY) {
+  output.println("<g>");
+  PShape [] children = parent.getChildren();
+  int childCount = parent.getChildCount();
+  for (int i = 0; i < childCount; i++) {
+    PShape s = children[i];
+    int k = s.getKind();
+    if (k == GROUP) {
+      writeGroupBody(output, s, style, translateX, translateY);
+    } else if (k == POLYGON) {
+      writePolygonBody(output, s, style, translateX, translateY);
+    }
+  }
+  output.println("</g>");
+}
+
+void writeShapeBody(PrintWriter output, PShape s, String style, int translateX, int translateY) {
+  int k = s.getKind();
+  if (k == GROUP) {
+    writeGroupBody(output, s, style, translateX, translateY);
+  } else if (k == POLYGON) {
+    writePolygonBody(output, s, style, translateX, translateY);
+  }
+}
+
+void writeSVGHeader(PrintWriter output, int w, int h) {
+  output.println(
+         "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>"
+  +"\n"+ "<svg"
+  +"\n"+ "    width=\"" + w + "\""
+  +"\n"+ "    height=\"" + h + "\""
+  +"\n"+ "    version=\"1.1\""
+  +"\n"+ "    xmlns:inkscape=\"http://www.inkscape.org/namespaces/inkscape\""
+  +"\n"+ "    xmlns:sodipodi=\"http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd\""
+  +"\n"+ "    xmlns=\"http://www.w3.org/2000/svg\""
+  +"\n"+ "    xmlns:svg=\"http://www.w3.org/2000/svg\">"
+  );
+}
+
+void writeSVGHooter(PrintWriter output) {
+  output.println("</svg>");
+}
+
+void writeLayerHeader(PrintWriter output, String name, String style) {
+  output.println(
+         "  <g"
+  +"\n"+ "     inkscape:groupmode=\"layer\""
+  +"\n"+ "     inkscape:label=\"" + name + "\""
+  +"\n"+ "     style=\"" + style + "\""
+  +"\n"+ "     >"
+  );
+}
+
+void writeLayerHooter(PrintWriter output) {
+  output.println("  </g>");
+}
+
+void writeRectBody(PrintWriter output, int w, int h, String style) {
+  output.println(
+         "      <rect"
+  +"\n"+ "       x=\"0\""
+  +"\n"+ "       width=\"" + w + "\""
+  +"\n"+ "       height=\"" + h + "\""
+  +"\n"+ "       y=\"0\""
+  +"\n"+ "       style=\"" + style + "\""
+  +"\n"+ "        />"
+  );
+}
+
+void writeCircleBody(PrintWriter output, int r, int cx, int cy, String style) {
+  output.println(
+         "      <circle"
+  +"\n"+ "       r=\"" + r + "\""
+  +"\n"+ "       style=\"" + style + "\""
+  +"\n"+ "       cx=\"" + cx + "\""
+  +"\n"+ "       cy=\"" + cx + "\""
+  +"\n"+ "        />"
+  );
+}
+
+void saveAsInkscapeSVG() {
+  if (!isLoaded) {
+    feedbackText.setText("no image file is currently open!");
+    feedbackText.update();
+    return;
+  }
+
+  // Construct filename
+  String fileName = createOutputFilename(sourceImgPath, "svg");
+
+  needToUpdatePreview = false;
+
+  // Update spiral by current parameter
+  updateOutputSpiral();
+
+  // Prepare
+  int r = 1;
+  int w = sourceImg.width;
+  int h = sourceImg.height;
+  int tx = 0;
+  int ty = 0;
+  if (useCircleShape) {
+    r = (int)Math.ceil(endRadius);
+    w = r * 2;
+    h = r * 2;
+    tx = r - centerPointX;
+    ty = r - centerPointY;
+  }
+
+  // Color
+  String strokeColor = null;
+  String fillColor = null;
+  if (penColorMode == PENCOLORMODE_WHITE) {
+    strokeColor = "#ffffff";
+    fillColor = "#000000";
+  } else {
+    strokeColor = "#000000";
+    fillColor = "#ffffff";
+  }
+
+  // Start writing SVG
+  PrintWriter output = createWriter(fileName);
+  writeSVGHeader(output, w, h);
+
+  // Write a background shape
+  writeLayerHeader(output, "GUIDE", "mix-blend-mode:normal");
+  if (useCircleShape) {
+    writeCircleBody(output, r, r, r, "fill:" + fillColor + ";stroke:none");
+  } else {
+    writeRectBody(output, w, h, "fill:" + fillColor + ";stroke:none");
+  }
+  writeLayerHooter(output);
+
+  // Write spiral
+  if (penColorMode == PENCOLORMODE_COLORS) {
+    writeLayerHeader(output, "C_SPIRAL", "mix-blend-mode:multiply");
+    writeShapeBody(output, outputSpiralC, "fill:none;stroke:#00ffff;stroke-linejoin:round", tx, ty);
+    writeLayerHooter(output);
+
+    writeLayerHeader(output, "M_SPIRAL", "mix-blend-mode:multiply");
+    writeShapeBody(output, outputSpiralM, "fill:none;stroke:#ff00ff;stroke-linejoin:round", tx, ty);
+    writeLayerHooter(output);
+
+    writeLayerHeader(output, "Y_SPIRAL", "mix-blend-mode:multiply");
+    writeShapeBody(output, outputSpiralY, "fill:none;stroke:#ffff00;stroke-linejoin:round", tx, ty);
+    writeLayerHooter(output);
+  } else {
+    writeLayerHeader(output, "SPIRAL", "mix-blend-mode:normal");
+    writeShapeBody(output, outputSpiral, "fill:none;stroke:" + strokeColor + ";stroke-linejoin:round", tx, ty);
+    writeLayerHooter(output);
+  }
+
+  // End of SVG
+  writeSVGHooter(output);
+
+  // Close file
+  output.flush(); 						// Writes the remaining data to the file
+  output.close();
+
+  // Done.
+  feedbackText.setText("saved as " + sketchPath(fileName));
+  feedbackText.update();
+
+  needToUpdatePreview = true;
 }
