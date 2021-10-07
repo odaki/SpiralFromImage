@@ -881,7 +881,7 @@ void mouseReleased() {
   }
 }
 
-void writePolygonBody(PrintWriter output, PShape s, String style, int translateX, int translateY) {
+void writeSVGPolygonBody(PrintWriter output, PShape s, String style, int translateX, int translateY) {
   int vertexcodecount = s.getVertexCodeCount();
   int [] vertexcodes = s.getVertexCodes();
   PVector vec = s.getVertex(0);
@@ -896,7 +896,7 @@ void writePolygonBody(PrintWriter output, PShape s, String style, int translateX
   output.println("\" />");
 }
 
-void writeGroupBody(PrintWriter output, PShape parent, String style, int translateX, int translateY) {
+void writeSVGGroupBody(PrintWriter output, PShape parent, String style, int translateX, int translateY) {
   output.println("<g>");
   PShape [] children = parent.getChildren();
   int childCount = parent.getChildCount();
@@ -904,20 +904,20 @@ void writeGroupBody(PrintWriter output, PShape parent, String style, int transla
     PShape s = children[i];
     int k = s.getKind();
     if (k == GROUP) {
-      writeGroupBody(output, s, style, translateX, translateY);
+      writeSVGGroupBody(output, s, style, translateX, translateY);
     } else if (k == POLYGON) {
-      writePolygonBody(output, s, style, translateX, translateY);
+      writeSVGPolygonBody(output, s, style, translateX, translateY);
     }
   }
   output.println("</g>");
 }
 
-void writeShapeBody(PrintWriter output, PShape s, String style, int translateX, int translateY) {
+void writeSVGShapeBody(PrintWriter output, PShape s, String style, int translateX, int translateY) {
   int k = s.getKind();
   if (k == GROUP) {
-    writeGroupBody(output, s, style, translateX, translateY);
+    writeSVGGroupBody(output, s, style, translateX, translateY);
   } else if (k == POLYGON) {
-    writePolygonBody(output, s, style, translateX, translateY);
+    writeSVGPolygonBody(output, s, style, translateX, translateY);
   }
 }
 
@@ -939,7 +939,7 @@ void writeSVGHooter(PrintWriter output) {
   output.println("</svg>");
 }
 
-void writeLayerHeader(PrintWriter output, String name, String style) {
+void writeSVGLayerHeader(PrintWriter output, String name, String style) {
   output.println(
          "  <g"
   +"\n"+ "     inkscape:groupmode=\"layer\""
@@ -949,11 +949,11 @@ void writeLayerHeader(PrintWriter output, String name, String style) {
   );
 }
 
-void writeLayerHooter(PrintWriter output) {
+void writeSVGLayerHooter(PrintWriter output) {
   output.println("  </g>");
 }
 
-void writeRectBody(PrintWriter output, int w, int h, String style) {
+void writeSVGRectBody(PrintWriter output, int w, int h, String style) {
   output.println(
          "      <rect"
   +"\n"+ "       x=\"0\""
@@ -965,7 +965,7 @@ void writeRectBody(PrintWriter output, int w, int h, String style) {
   );
 }
 
-void writeCircleBody(PrintWriter output, int r, int cx, int cy, String style) {
+void writeSVGCircleBody(PrintWriter output, int r, int cx, int cy, String style) {
   output.println(
          "      <circle"
   +"\n"+ "       r=\"" + r + "\""
@@ -1021,31 +1021,31 @@ void saveAsInkscapeSVG() {
   writeSVGHeader(output, w, h);
 
   // Write a background shape
-  writeLayerHeader(output, "GUIDE", "mix-blend-mode:normal");
+  writeSVGLayerHeader(output, "GUIDE", "mix-blend-mode:normal");
   if (useCircleShape) {
-    writeCircleBody(output, r, r, r, "fill:" + fillColor + ";stroke:none");
+    writeSVGCircleBody(output, r, r, r, "fill:" + fillColor + ";stroke:none");
   } else {
-    writeRectBody(output, w, h, "fill:" + fillColor + ";stroke:none");
+    writeSVGRectBody(output, w, h, "fill:" + fillColor + ";stroke:none");
   }
-  writeLayerHooter(output);
+  writeSVGLayerHooter(output);
 
   // Write spiral
   if (penColorMode == PENCOLORMODE_COLORS) {
-    writeLayerHeader(output, "C_SPIRAL", "mix-blend-mode:multiply");
-    writeShapeBody(output, outputSpiralC, "fill:none;stroke:#00ffff;stroke-linejoin:round", tx, ty);
-    writeLayerHooter(output);
+    writeSVGLayerHeader(output, "C_SPIRAL", "mix-blend-mode:multiply");
+    writeSVGShapeBody(output, outputSpiralC, "fill:none;stroke:#00ffff;stroke-linejoin:round", tx, ty);
+    writeSVGLayerHooter(output);
 
-    writeLayerHeader(output, "M_SPIRAL", "mix-blend-mode:multiply");
-    writeShapeBody(output, outputSpiralM, "fill:none;stroke:#ff00ff;stroke-linejoin:round", tx, ty);
-    writeLayerHooter(output);
+    writeSVGLayerHeader(output, "M_SPIRAL", "mix-blend-mode:multiply");
+    writeSVGShapeBody(output, outputSpiralM, "fill:none;stroke:#ff00ff;stroke-linejoin:round", tx, ty);
+    writeSVGLayerHooter(output);
 
-    writeLayerHeader(output, "Y_SPIRAL", "mix-blend-mode:multiply");
-    writeShapeBody(output, outputSpiralY, "fill:none;stroke:#ffff00;stroke-linejoin:round", tx, ty);
-    writeLayerHooter(output);
+    writeSVGLayerHeader(output, "Y_SPIRAL", "mix-blend-mode:multiply");
+    writeSVGShapeBody(output, outputSpiralY, "fill:none;stroke:#ffff00;stroke-linejoin:round", tx, ty);
+    writeSVGLayerHooter(output);
   } else {
-    writeLayerHeader(output, "SPIRAL", "mix-blend-mode:normal");
-    writeShapeBody(output, outputSpiral, "fill:none;stroke:" + strokeColor + ";stroke-linejoin:round", tx, ty);
-    writeLayerHooter(output);
+    writeSVGLayerHeader(output, "SPIRAL", "mix-blend-mode:normal");
+    writeSVGShapeBody(output, outputSpiral, "fill:none;stroke:" + strokeColor + ";stroke-linejoin:round", tx, ty);
+    writeSVGLayerHooter(output);
   }
 
   // End of SVG
