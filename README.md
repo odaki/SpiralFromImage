@@ -33,3 +33,7 @@ v1.6
 
 - added color mode
 - support for inkscape layered SVG
+
+v1.7
+
+- fixed a problem where the save path was always the sketch folder
