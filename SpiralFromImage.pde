@@ -33,6 +33,7 @@
 //     draw a checkered pattern as a canvas to make the transparent image easier to see
 // 1.6 added color mode
 //     support for inkscape layered SVG
+// 1.7 fixed a problem where the save path was always the sketch folder
 //
 // SpiralfromImage is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -95,7 +96,7 @@ boolean needToDrawOriginalImage = false;
 
 static final int CANVAS_ORIGIN_X = 187;
 static final int CANVAS_ORIGIN_Y = 85;
-final int guiBorder = 12;
+static final int GUI_BORDER = 12;
 
 int canvasWidth = DISPLAY_IMAGE_SIZE;
 int canvasHeight = DISPLAY_IMAGE_SIZE;
@@ -465,10 +466,10 @@ public void previewSwitch(boolean theValue) {
 
 // File path utils
 String createOutputFilename(String basePath, String ext) {
-  // get the filename of the image and remove the extension
+  // Get the filename of the image and remove the extension
   // No check if extension exists
   File file = new File(basePath);
-  String imageName = file.getName();
+  String imageName = file.getPath();
   imageName = imageName.substring(0, imageName.lastIndexOf("."));
   return imageName + "." + ext;
 }
@@ -572,9 +573,9 @@ void drawBackground() {
   noStroke();
   background(235);
   fill(245);
-  rect(25, 25, 100 + guiBorder * 2, 25 + DISPLAY_IMAGE_SIZE + 25 * 2);
+  rect(25, 25, 100 + GUI_BORDER * 2, 25 + DISPLAY_IMAGE_SIZE + 25 * 2);
   fill(245);
-  rect(175, 25, DISPLAY_IMAGE_SIZE + guiBorder * 2, 25 + DISPLAY_IMAGE_SIZE + 25 * 2);
+  rect(175, 25, DISPLAY_IMAGE_SIZE + GUI_BORDER * 2, 25 + DISPLAY_IMAGE_SIZE + 25 * 2);
   clearCanvas();
 }
 
